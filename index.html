@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>animatedSVG</title>
+<meta name="description" content="animatedSVG: free, pointer-reactive SVG line animations. Copy the code or the embed and drop them into any website. No dependencies.">
+<meta property="og:title" content="animatedSVG">
+<meta property="og:description" content="Free, pointer-reactive SVG line animations for any website.">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#08090a" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 22 L16 8 L28 22' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root { color-scheme: light; --ground: #ffffff; --raise: #f7f7f8; --ink: #232327; --muted: #6f6f78; --line: #e0e0e4; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { color-scheme: dark; --ground: #08090a; --raise: #101113; --ink: #d0d6e0; --muted: #8a8c95; --line: #29292d; }
+  }
+  :root[data-theme="dark"] { color-scheme: dark; --ground: #08090a; --raise: #101113; --ink: #d0d6e0; --muted: #8a8c95; --line: #29292d; }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink); overflow-x: hidden;
+    font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  .mono, button, .btn, code, .eyebrow { font: 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.02em; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
+  section { padding: 96px 0; border-top: 1px solid var(--line); scroll-margin-top: 56px; }
+  h1, h2, h3 { font-weight: 500; letter-spacing: -0.025em; margin: 0; }
+  h1 { font-size: clamp(36px, 6.4vw, 68px); line-height: 1.02; }
+  h2 { font-size: clamp(26px, 3.6vw, 38px); line-height: 1.1; margin-bottom: 16px; }
+  h3 { font-size: 16px; margin-bottom: 6px; }
+  .eyebrow { display: block; color: var(--muted); margin-bottom: 18px; text-transform: uppercase; }
+  .lede { color: var(--muted); max-width: 56ch; margin: 0; text-wrap: pretty; }
+
+  /* nav */
+  nav {
+    position: sticky; top: 0; z-index: 10; height: 56px; border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--ground) 88%, transparent); backdrop-filter: blur(10px);
+  }
+  nav .wrap { height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 500; letter-spacing: -0.01em; }
+  .brand svg { width: 20px; height: 20px; }
+  .links { display: flex; align-items: center; gap: 22px; }
+  .links a { text-decoration: none; color: var(--muted); }
+  .links a:hover { color: var(--ink); }
+  @media (max-width: 720px) { .links a:not(.btn) { display: none; } }
+
+  /* buttons */
+  button, .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px;
+    border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink);
+    cursor: pointer; text-decoration: none; white-space: nowrap; transition: border-color .15s;
+  }
+  button:hover, .btn:hover { border-color: var(--ink); }
+  .primary { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+  .links .btn { color: var(--ink); height: 32px; }
+  :focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+
+  /* hero */
+  .hero { padding: 72px 0 96px; border: 0; }
+  .hero .wrap { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; align-items: center; }
+  .hero .lede { margin: 22px 0 30px; font-size: 17px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 10px; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 34px; color: var(--muted); }
+  .facts span::before { content: "— "; }
+  .stage { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--ground); }
+  .stage iframe { display: block; width: 100%; height: 580px; border: 0; }
+  @media (max-width: 900px) {
+    .hero .wrap { grid-template-columns: minmax(0, 1fr); }
+    .stage iframe { height: 540px; }
+  }
+
+  /* features */
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1px; margin-top: 48px;
+    background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .features div { background: var(--ground); padding: 26px 22px; }
+  .features p { margin: 0; color: var(--muted); font-size: 14px; }
+  .features .mono { display: block; color: var(--muted); margin-bottom: 22px; }
+
+  /* gallery */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 24px; margin-top: 48px; }
+  .card { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+  .card iframe { display: block; width: 100%; height: 520px; border: 0; border-bottom: 1px solid var(--line); background: var(--ground); }
+  .card .body { padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .card h3 { margin: 0; text-transform: capitalize; }
+  .actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .actions button, .actions .btn { height: 32px; padding: 0 11px; }
+
+  /* how + stack */
+  .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; }
+  @media (max-width: 820px) { .split { grid-template-columns: minmax(0, 1fr); } }
+  ol.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 40px 1fr; padding: 18px 0; border-top: 1px solid var(--line); }
+  ol.steps li:last-child { border-bottom: 1px solid var(--line); }
+  ol.steps li::before { content: "0" counter(s); font: 12px/1.9 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
+  ol.steps p { margin: 0; color: var(--muted); font-size: 14px; }
+  code { background: var(--raise); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
+  pre { margin: 20px 0 0; padding: 16px; background: var(--raise); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
+  pre code { background: none; border: 0; padding: 0; }
+  .stack { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; margin-top: 40px; }
+  .stack div { border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .stack p { margin: 0; color: var(--muted); font-size: 13.5px; }
+
+  /* about */
+  .about { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; align-items: start; }
+  @media (max-width: 820px) { .about { grid-template-columns: minmax(0, 1fr); } }
+  .contact { border: 1px solid var(--line); border-radius: 14px; padding: 28px; }
+  .contact p { color: var(--muted); margin: 0 0 22px; }
+
+  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--muted); }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 24px; line-height: 1.7; }
+  footer a { color: var(--muted); }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 24px; z-index: 20; translate: -50% 16px; opacity: 0; pointer-events: none;
+    background: var(--ink); color: var(--ground); padding: 11px 15px; border-radius: 8px; transition: opacity .2s, translate .2s;
+  }
+  #toast.on { opacity: 1; translate: -50% 0; }
+  @media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="animatedSVG home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 22 L16 8 L28 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      animatedSVG
+    </a>
+    <div class="links mono">
+      <a href="#gallery">Gallery</a>
+      <a href="#how">How it works</a>
+      <a href="#about">About</a>
+      <a class="btn" href="https://github.com/sanketh908/animatedSVG" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <span class="eyebrow">Free interactive SVG animations</span>
+      <h1>Line animations that look back at your visitors.</h1>
+      <p class="lede">animatedSVG is a free library of hand-built 3D line figures that react to the pointer. Each one is a single HTML file with no dependencies. Copy it, embed it, or download it, and it works on any website.</p>
+      <div class="cta">
+        <a class="btn primary" href="#gallery">Browse the gallery</a>
+        <a class="btn" href="#how">How to use it</a>
+      </div>
+      <div class="facts mono"><span>7 figures</span><span>0 dependencies</span><span>light + dark</span><span>free to use</span></div>
+    </div>
+    <div class="stage">
+      <iframe src="hairline-cat.html" title="Live demo: a cat that wakes and watches the pointer"></iframe>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section id="features">
+    <div class="wrap">
+      <span class="eyebrow">What it is</span>
+      <h2>Small, alive, and easy to drop in.</h2>
+      <p class="lede">Most animation kits ship a runtime, a build step and a bundle. These are plain files you can read, paste and change.</p>
+      <div class="features">
+        <div><span class="mono">01</span><h3>Reacts to the pointer</h3><p>Figures wake up, turn and follow the cursor on springs, then settle back to rest.</p></div>
+        <div><span class="mono">02</span><h3>One file each</h3><p>Markup, styles, engine and figure in a single HTML file. No npm, no bundler, no CDN.</p></div>
+        <div><span class="mono">03</span><h3>Light and dark</h3><p>Follows the visitor's colour scheme automatically, or force one with a single attribute.</p></div>
+        <div><span class="mono">04</span><h3>Crisp at any size</h3><p>Drawn as SVG paths, so lines stay sharp on every screen and zoom level.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="gallery">
+    <div class="wrap">
+      <span class="eyebrow">Gallery</span>
+      <h2>Pick a figure. Take the code.</h2>
+      <p class="lede">Every figure below is running live. Hover it, then copy the full code or an embed snippet for your own site.</p>
+      <div class="grid" id="grid"></div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="wrap split">
+      <div>
+        <span class="eyebrow">How it works</span>
+        <h2>3D shapes, drawn as lines.</h2>
+        <p class="lede">Each figure is built from simple 3D solids: ellipsoids, tubes and boxes. A small engine projects them through a camera and outlines each one as an SVG path. Pointer movement sets targets for springs, and a frame loop redraws the paths until the springs settle, so nothing runs while the figure is at rest.</p>
+        <pre><code>&lt;iframe src="https://YOUR-SITE/hairline-cat.html"
+  title="cat" width="640" height="560"
+  style="border:0" loading="lazy"&gt;&lt;/iframe&gt;</code></pre>
+      </div>
+      <ol class="steps">
+        <li><div><h3>Choose a figure</h3><p>Try them live in the gallery and pick the one that fits your page.</p></div></li>
+        <li><div><h3>Copy the embed or the code</h3><p><strong>Copy embed</strong> gives an <code>&lt;iframe&gt;</code> that loads the figure from this site. <strong>Copy code</strong> gives the whole file to host yourself.</p></div></li>
+        <li><div><h3>Paste it into your site</h3><p>Works in plain HTML, WordPress, Webflow, React or anything else that accepts HTML.</p></div></li>
+        <li><div><h3>Set the theme (optional)</h3><p>Add <code>data-theme="light"</code> or <code>"dark"</code> to the figure's <code>&lt;html&gt;</code> tag to lock its colours.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="stack">
+    <div class="wrap">
+      <span class="eyebrow">Tech stack</span>
+      <h2>Built on the web platform.</h2>
+      <div class="stack">
+        <div><h3>SVG</h3><p>Every line is an SVG path, so it scales without blur.</p></div>
+        <div><h3>Vanilla JavaScript</h3><p>No framework. Springs and a requestAnimationFrame loop that sleeps at rest.</p></div>
+        <div><h3>CSS custom properties</h3><p>Theme colours and light/dark modes with prefers-color-scheme.</p></div>
+        <div><h3>Hairline engine</h3><p>Open-source 3D-to-line engine by Lucas Marques, MIT licensed.</p></div>
+        <div><h3>Vercel</h3><p>Static hosting on a global edge network.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="about">
+    <div class="wrap about">
+      <div>
+        <span class="eyebrow">About</span>
+        <h2>Made by Sanketh.</h2>
+        <p class="lede">animatedSVG is built by Sanketh, a final-year BCA student and developer. The goal is simple: give every website a bit of life without making it heavier or harder to maintain.</p>
+        <div class="cta" style="margin-top:28px">
+          <a class="btn" href="https://portfolio-v3-psi-neon.vercel.app" target="_blank" rel="noopener">Portfolio</a>
+          <a class="btn" href="https://github.com/sanketh908" target="_blank" rel="noopener">GitHub</a>
+        </div>
+      </div>
+      <div class="contact">
+        <span class="eyebrow">Contact</span>
+        <h3>Want a custom figure or have a question?</h3>
+        <p>Email directly. Requests for new figures, bug reports and feedback are all welcome.</p>
+        <a class="btn primary" href="mailto:sankeths908@gmail.com">sankeths908@gmail.com</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap mono">
+    <span>© 2026 animatedSVG · Sanketh</span>
+    <span>Figures built on <a href="https://github.com/lucasmarkes/hairline" target="_blank" rel="noopener">Hairline</a> by Lucas Marques (MIT) · <a href="THIRD_PARTY_NOTICES.txt">Licenses</a></span>
+  </div>
+</footer>
+
+<div id="toast" class="mono" role="status" aria-live="polite"></div>
+
+<template id="card">
+  <article class="card">
+    <iframe loading="lazy"></iframe>
+    <div class="body">
+      <h3></h3>
+      <div class="actions mono">
+        <button class="primary" data-act="code">Copy code</button>
+        <button data-act="embed">Copy embed</button>
+        <a class="btn" download>Download</a>
+      </div>
+    </div>
+  </article>
+</template>
+
+<script>
+const FIGURES = ["cat", "dog", "gaze", "book", "laptop", "speaker", "surprise"];
+
+const grid = document.getElementById("grid"), tpl = document.getElementById("card"), toast = document.getElementById("toast");
+let timer;
+function say(msg) {
+  toast.textContent = msg; toast.classList.add("on");
+  clearTimeout(timer); timer = setTimeout(() => toast.classList.remove("on"), 1800);
+}
+async function copy(text, msg) {
+  try { await navigator.clipboard.writeText(text); say(msg); }
+  catch { say("Copy failed. Use Download instead."); }
+}
+
+for (const name of FIGURES) {
+  const file = `hairline-${name}.html`, url = new URL(file, location.href).href, node = tpl.content.cloneNode(true);
+  const frame = node.querySelector("iframe");
+  frame.src = file;
+  frame.title = `${name} figure, live`;
+  node.querySelector("h3").textContent = name;
+  node.querySelector("a").href = file;
+  node.querySelector('[data-act="code"]').onclick = async () => {
+    try { copy(await (await fetch(file)).text(), `${name}: code copied`); }
+    catch { say("Couldn't load the file. Use Download instead."); }
+  };
+  node.querySelector('[data-act="embed"]').onclick = () =>
+    copy(`<iframe src="${url}" title="${name}" width="640" height="560" style="border:0" loading="lazy"></iframe>`, `${name}: embed copied`);
+  grid.append(node);
+}
+</script>
+</body>
+</html>
