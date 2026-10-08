@@ -1,3 +1,5 @@
 *.png
 .playwright-mcp/
 .vercel/
+.vercel
+.env*
