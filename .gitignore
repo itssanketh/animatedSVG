@@ -3,3 +3,4 @@
 .vercel/
 .vercel
 .env*
+!og.png

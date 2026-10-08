@@ -1,3 +1,4 @@
 *.png
 .playwright-mcp/
 .env*
+!og.png
