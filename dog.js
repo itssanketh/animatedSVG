@@ -1,183 +1,184 @@
 /**
- * Dog: a puppy in a collar, dozing, head tipped, ears down. Bring the pointer
- * onto the stage and it wakes: eyes open, ears lift, tongue out, head turns to
- * watch on springs, and the tail wags while the pointer stays (the one ambient
- * motion). Built as the cat is: ellipsoids whose outlines are hulls, the face
- * drawn on head and muzzle. The hit test is the head's fixed centre on screen.
+ * Dog: a puppy in a collar on a soft bed, dozing: head tipped down, ears hanging,
+ * eyes shut. Bring the pointer near and it wakes on the 700ms curve, ears lift,
+ * eyes open, tongue out, and its head follows the pointer on two springs, left
+ * and right and up and down; its tail wags while the pointer stays, the one
+ * ambient motion. The read-out names where it watches; the slider is how far the
+ * head can go. Each mass is one soft outline: its rounded shapes merged where
+ * they meet. The hit test is the head's fixed centre on screen.
  */
 const {
-  Cam, clamp, disposer, fit, hull, lerp, mk, open, pointer, poly, proj, rad, reducedMotion, register, spring, stepS,
+  Cam, clamp, fit, hull, lerp, mk, open, place, pointer, poly, proj, rad, reducedMotion, register,
+  spring, stepS, tdone, tset, tval, tween, disposer,
 } = HL;
 
-const add = (a, b, s = 1) => a.map((x, i) => x + b[i] * s);
-const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const S = 3.6, F0 = [Math.SQRT1_2, Math.SQRT1_2], R0 = [Math.SQRT1_2, -Math.SQRT1_2];
+const BC = [-2, -2], HZ = 23, REST = [14, -14], WAG = 3.2;
+const DIRS = ["e", "ne", "n", "nw", "w", "sw", "s", "se"];
+const SEG = { 1: "LB", 14: "LB", 2: "BR", 13: "BR", 3: "LR", 12: "LR", 4: "TR", 11: "TR", 6: "TB", 9: "TB", 7: "LT", 8: "LT" };
 const SPH = [];
-for (let i = 1; i < 18; i++) for (let j = 0; j < 40; j++) {
-  const t = (i / 18) * Math.PI, f = (j / 40) * 2 * Math.PI;
-  SPH.push([Math.sin(t) * Math.cos(f), Math.cos(t), Math.sin(t) * Math.sin(f)]);
+for (let i = 1; i < 9; i++) for (let j = 0; j < 18; j++) { const t = (i / 9) * Math.PI, f = (j / 18) * 2 * Math.PI; SPH.push([Math.sin(t) * Math.cos(f), Math.sin(t) * Math.sin(f), Math.cos(t)]); }
+SPH.push([0, 0, 1], [0, 0, -1]);
+
+/** A frame about o (x, y, z), turned by yaw from facing the eye and tipped up by pitch. */
+function frame3(o, yaw, pitch) {
+  const c = Math.cos(yaw), s = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const R = [R0[0] * c - F0[0] * s, R0[1] * c - F0[1] * s, 0], Fh = [F0[0] * c + R0[0] * s, F0[1] * c + R0[1] * s];
+  const F = [Fh[0] * cp, Fh[1] * cp, sp], U = [-Fh[0] * sp, -Fh[1] * sp, cp];
+  return (u, v, h) => [0, 1, 2].map((i) => o[i] + R[i] * u + F[i] * v + U[i] * h);
 }
-SPH.push([0, 1, 0], [0, -1, 0]);
 
-const HEAD = [11, 10, 10], MUZ = [5.3, 4, 5.2], REST = { yaw: 20, pitch: -8 }, WAG_HZ = 2.6;
-
-/** A frame facing az degrees round z (45 faces the eye) and pitch up, rolled: right, up, forward. */
-function frame(az, pitch = 0, roll = 0) {
-  const a = rad(az), p = rad(pitch);
-  const F = [Math.cos(p) * Math.cos(a), Math.cos(p) * Math.sin(a), Math.sin(p)];
-  let Rt = [Math.sin(a), -Math.cos(a), 0], Up = cross(Rt, F);
-  const c = Math.cos(rad(roll)), s = Math.sin(rad(roll));
-  [Rt, Up] = [add(Rt.map((x) => x * c), Up, s), add(Up.map((x) => x * c), Rt, -s)];
-  return { Rt, Up, F };
-}
-/** The world point at local (a right, b up, c forward) on an ellipsoid of radii r round o. */
-const at = (o, { Rt, Up, F }, r, [a, b, c]) => add(add(add(o, Rt, a * r[0]), Up, b * r[1]), F, c * r[2]);
-/** A point on the ellipsoid's front surface at face coordinates (a, b). */
-const face = (o, fr, r, a, b, lift = 0) => at(o, fr, r, [a, b, Math.sqrt(Math.max(0, 1 - a * a - b * b)) + lift]);
-
-/** A tapering tube along screen points, with a round end: the outline of a tail. */
-function tube(pts, r0, r1) {
-  const n = pts.length, L = [], R = [];
-  pts.forEach((p, k) => {
-    const q = pts[Math.min(k + 1, n - 1)], o = pts[Math.max(k - 1, 0)], dx = q[0] - o[0], dy = q[1] - o[1], m = Math.hypot(dx, dy) || 1;
-    const r = lerp(r0, r1, k / (n - 1));
-    L.push([p[0] - (dy / m) * r, p[1] + (dx / m) * r]); R.push([p[0] + (dy / m) * r, p[1] - (dx / m) * r]);
+/** One soft outline round convex shapes on screen: the zero contour of the smooth minimum of their distances (fillet k), by marching squares. */
+function soft(shapes, k = 2.5, step = 0.7) {
+  const parts = shapes.map((pts) => {
+    const h = hull(pts), n = h.length, cx = h.reduce((a, p) => a + p[0], 0) / n, cy = h.reduce((a, p) => a + p[1], 0) / n, pl = [];
+    for (let i = 0; i < n; i++) {
+      const a = h[i], b = h[(i + 1) % n], l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (l < 1e-6) continue;
+      let nx = (b[1] - a[1]) / l, ny = -(b[0] - a[0]) / l;
+      if (nx * (cx - a[0]) + ny * (cy - a[1]) > 0) { nx = -nx; ny = -ny; }
+      pl.push(nx, ny, nx * a[0] + ny * a[1]);
+    }
+    const xs = h.map((p) => p[0]), ys = h.map((p) => p[1]); return { pl, x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
   });
-  const e = pts[n - 1], a0 = Math.atan2(L[n - 1][1] - e[1], L[n - 1][0] - e[0]), d = pts[n - 1], b = pts[n - 2];
-  const dir = Math.atan2(d[1] - b[1], d[0] - b[0]), sg = Math.sign(Math.sin(dir - a0)) || 1;
-  const cap = Array.from({ length: 9 }, (_, k) => { const t = a0 + sg * (k / 8) * Math.PI; return [e[0] + r1 * Math.cos(t), e[1] + r1 * Math.sin(t)]; });
-  return poly([...L, ...cap, ...R.reverse()]);
+  const X0 = Math.min(...parts.map((p) => p.x0)) - k - 2, Y0 = Math.min(...parts.map((p) => p.y0)) - k - 2;
+  const W = Math.ceil((Math.max(...parts.map((p) => p.x1)) + k + 2 - X0) / step) + 1, H = Math.ceil((Math.max(...parts.map((p) => p.y1)) + k + 2 - Y0) / step) + 1;
+  const f = new Float32Array(W * H);
+  for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+    const x = X0 + i * step, y = Y0 + j * step; let v = 1e9;
+    for (const p of parts) {
+      const bx = Math.max(p.x0 - x, x - p.x1, 0), by = Math.max(p.y0 - y, y - p.y1, 0), bd = Math.hypot(bx, by);
+      let d = bd;
+      if (bd < k + 1) { d = -1e9; for (let q = 0; q < p.pl.length; q += 3) d = Math.max(d, p.pl[q] * x + p.pl[q + 1] * y - p.pl[q + 2]); }
+      const hh = Math.max(k - Math.abs(v - d), 0) / k; v = Math.min(v, d) - hh * hh * k * 0.25;
+    }
+    f[j * W + i] = v;
+  }
+  // marching squares: each crossing is keyed by its grid edge; segments join crossings into loops
+  const at = new Map(), nb = new Map();
+  const cross = (i, j, dir) => {
+    const key = (j * W + i) * 2 + dir;
+    if (!at.has(key)) {
+      const a = f[j * W + i], b = dir ? f[(j + 1) * W + i] : f[j * W + i + 1], t = a / (a - b);
+      at.set(key, dir ? [X0 + i * step, Y0 + (j + t) * step] : [X0 + (i + t) * step, Y0 + j * step]);
+    }
+    return key;
+  };
+  const link = (a, b) => { (nb.get(a) || nb.set(a, []).get(a)).push(b); (nb.get(b) || nb.set(b, []).get(b)).push(a); };
+  for (let j = 0; j < H - 1; j++) for (let i = 0; i < W - 1; i++) {
+    const a = f[j * W + i] < 0, b = f[j * W + i + 1] < 0, c = f[(j + 1) * W + i + 1] < 0, d = f[(j + 1) * W + i] < 0;
+    const cs = (a ? 8 : 0) | (b ? 4 : 0) | (c ? 2 : 0) | (d ? 1 : 0);
+    if (cs === 0 || cs === 15) continue;
+    const E = { T: () => cross(i, j, 0), R: () => cross(i + 1, j, 1), B: () => cross(i, j + 1, 0), L: () => cross(i, j, 1) };
+    const mid = (f[j * W + i] + f[j * W + i + 1] + f[(j + 1) * W + i + 1] + f[(j + 1) * W + i]) < 0;
+    const segs = cs === 5 ? (mid ? "LTBR" : "TRLB") : cs === 10 ? (mid ? "TRLB" : "LTBR") : SEG[cs];
+    for (let q = 0; q < segs.length; q += 2) link(E[segs[q]](), E[segs[q + 1]]());
+  }
+  const seen = new Set();
+  let d = "";
+  for (const start of nb.keys()) {
+    if (seen.has(start)) continue;
+    const loop = []; let cur = start, prev = -1;
+    while (cur !== undefined && !seen.has(cur)) {
+      seen.add(cur); loop.push(at.get(cur));
+      const nx = nb.get(cur).find((x) => x !== prev && !seen.has(x)); prev = cur; cur = nx;
+    }
+    let L = loop; for (let r = 0; r < 2; r++) L = L.flatMap((p, i) => { const q = L[(i + 1) % L.length]; return [[0.75 * p[0] + 0.25 * q[0], 0.75 * p[1] + 0.25 * q[1]], [0.25 * p[0] + 0.75 * q[0], 0.25 * p[1] + 0.75 * q[1]]]; });
+    if (loop.length > 6) d += poly(L);
+  }
+  return d;
 }
-
-/** Whether the page shows the dark theme: the eyes swap classes, never colours, to keep light whites and a dark pupil in both. */
-const isDark = () => getComputedStyle(document.documentElement).colorScheme === "dark";
 
 function mount({ stage, svg, read }, value) {
-  const bag = disposer();
-  let reach = value;
+  const bag = disposer(); let reach = value, ph = 0;
 
-  const B0 = [0, 0, 12], body = frame(45);
-  const CH = add(add(B0, body.F, 3.5), [0, 0, 13]);
-  const HC = add(add(B0, body.F, 5), [0, 0, 27]);
-  const C = Cam(45, 0.5, 4.1);
-  fit(C, [add(B0, [-24, -24, -12]), add(B0, [24, 24, -12]), add(B0, [24, -24, -12]), add(B0, [-24, 24, -12]), add(HC, [0, 0, 16]), add(HC, body.Rt, 22), add(HC, body.Rt, -22), add(add(B0, body.Rt, 30), [0, 0, 22])], 200, 168);
+  const C = Cam(45, 0.5, S);
+  fit(C, [[-25, -25, -4], [25, 25, -4], [25, -25, -4], [-25, 25, -4], [0, 0, HZ + 17]], 200, 166);
   const P = proj(C);
-  const W = (p) => P(...p);
-  const ell = (o, r, fr = body) => SPH.map((d) => W(at(o, fr, r, d)));
+  const body = frame3([BC[0], BC[1], 0], 0, 0), B3 = (u, v, z) => P(...body(u, v, z));
+  const ell = (Fr, c, r) => SPH.map(([a, b, h]) => P(...Fr(c[0] + a * r[0], c[1] + b * r[1], c[2] + h * r[2])));
+  /** A tube through [centre, radius] stations, as capsule segments, each the hull of its two end balls. */
+  const tubeOf = (st, Fr = body) => st.slice(1).map(([c, r], i) => ell(Fr, st[i][0], [st[i][1], st[i][1], st[i][1]]).concat(ell(Fr, c, [r, r, r])));
+  const HC = [BC[0] + 4.4 * F0[0], BC[1] + 4.4 * F0[1]];
 
-  const g = mk("g", {}, svg), tail = mk("path", { class: "sil" }, g); // the tail first: it stands behind the haunch
+  const g = mk("g", {}, svg);
+  // the bed: a soft flattened round, its seam a dim line round the near side
+  const ring = (r, z) => Array.from({ length: 64 }, (_, k) => P(r * Math.cos((k / 64) * 2 * Math.PI), r * Math.sin((k / 64) * 2 * Math.PI), z));
+  mk("path", { d: poly(hull([...ring(25, -2), ...ring(23, 0.4), ...ring(23, -4.4)])), class: "sil" }, g);
+  mk("path", { d: open(Array.from({ length: 25 }, (_, k) => { const t = rad(-45 + k * 7.5); return P(24.4 * Math.cos(t), 24.4 * Math.sin(t), -2); })), class: "nf lo" }, g);
 
-  // body: haunches, a deep chest, and the thighs in one silhouette
-  const thighAt = (s) => add(add(add(B0, body.Rt, s * 9.5), body.F, -1), [0, 0, -4.5]), THIGH = [5, 6.5, 8];
-  mk("path", { d: poly(hull(ell(add(B0, [0, 0, -1.5]), [14.5, 10.5, 12.5]).concat(ell(CH, [9.5, 12, 9]), ell(thighAt(-1), THIGH), ell(thighAt(1), THIGH)))), class: "sil" }, g);
+  // the tail, rising from behind the haunches; painted first, so only what clears the body shows
+  const tail = mk("path", { class: "sil" }, g);
+  const drawTail = (wag) => tail.setAttribute("d", soft(tubeOf(Array.from({ length: 9 }, (_, k) => { const t = k / 8; return [[7 + t * 6 + wag * t * t * 2.4, -8 - t * 4 + wag * t * t * 1.6, 5 + t * 14 - t * t * 2], lerp(2.4, 1.4, t)]; })), 3));
+
+  // the body: haunches, belly, deep chest and neck, folded back paws, all one outline
+  mk("path", { d: soft([
+    ell(body, [-5.8, -4.4, 5.6], [5.2, 7.4, 5.6]), ell(body, [5.8, -4.4, 5.6], [5.2, 7.4, 5.6]), ell(body, [0, -2, 5.8], [6, 7.4, 5.8]),
+    ell(body, [0, 2.2, 12], [5.6, 5.2, 10.4]), ell(body, [0, 3, 20], [4.8, 4.8, 5.2]),
+    ell(body, [-8.2, 3.4, 1.4], [2.2, 3.4, 1.4]), ell(body, [8.2, 3.4, 1.4], [2.2, 3.4, 1.4]),
+  ], 10), class: "sil" }, g);
+  // the collar: a band round the neck, and its tag
+  const band = (z) => open(Array.from({ length: 15 }, (_, k) => { const t = rad(-10 + k * 13.6); return B3(5 * Math.cos(t), 3 + 5 * Math.sin(t), z + Math.sin(t) * 0.6); }));
+  mk("path", { d: band(19.2) + band(21.2), class: "nf" }, g);
+  place(mk("circle", { r: 1.6, class: "dot m" }, g), B3(0, 8.4, 17.6));
+  // front legs and paws, one outline each side, two toe lines on each paw
   for (const s of [-1, 1]) {
-    // the thigh's inner curve, and the back foot flat on the floor
-    const th = hull(ell(thighAt(s), THIGH)), cx = W(thighAt(s))[0], inner = Math.sign(W(B0)[0] - cx);
-    const keep = th.map((p) => (p[0] - cx) * inner > 0 && p[1] < W(thighAt(s))[1] + 18), i0 = keep.findIndex((k, j) => k && !keep[(j + keep.length - 1) % keep.length]);
-    const arcT = [];
-    for (let j = 0; j < th.length && keep[(i0 + j) % th.length]; j++) arcT.push(th[(i0 + j) % th.length]);
-    mk("path", { d: open(arcT), class: "nf lo" }, g);
-    const foot = add(add(add(B0, body.Rt, s * 11.8), body.F, 4.5), [0, 0, -10.3]);
-    mk("path", { d: poly(hull(ell(foot, [2.6, 1.7, 6]))), class: "sil" }, g);
-    mk("path", { d: [-1, 1].map((k) => open([W(add(add(foot, body.F, 5.7), body.Rt, k * 0.9)), W(add(add(add(foot, body.F, 4.6), body.Rt, k * 0.9), [0, 0, 1.2]))])).join(""), class: "nf lo" }, g);
-  }
-  // front legs: straight, as a dog sits, down to big round paws
-  for (const s of [-1, 1]) {
-    const top = add(add(add(B0, body.F, 9), body.Rt, s * 4.3), [0, 0, 3]), foot = add(add(add(B0, body.F, 11), body.Rt, s * 4.5), [0, 0, -9]);
-    const legs = SPH.map((d) => W(add(top, d, 2.9))).concat(SPH.map((d) => W(add(foot, [d[0] * 3.7, d[2] * 3.7, d[1] * 2.6]))));
-    mk("path", { d: poly(hull(legs)), class: "sil" }, g);
-    mk("path", { d: [-1.3, 0, 1.3].map((k) => open([W(add(add(foot, body.F, 3.6), body.Rt, k)), W(add(add(add(foot, body.F, 2.6), body.Rt, k), [0, 0, 1.7]))])).join(""), class: "nf lo" }, g);
+    mk("path", { d: soft([...tubeOf([[[s * 3, 5.6, 9.5], 2.3], [[s * 3.1, 6.8, 3], 2]]), ell(body, [s * 3.2, 8.4, 1.5], [2.6, 3.3, 1.6])], 3), class: "sil" }, g);
+    mk("path", { d: [-0.9, 0.9].map((o) => open([B3(s * 3.2 + o, 11.1, 0.5), B3(s * 3.2 + o, 11.4, 2)])).join(""), class: "nf lo" }, g);
   }
 
-  // the head, its floppy ears, the face; then the collar under the chin with its tag
-  const head = mk("path", { class: "sil" }, g);
-  const ears = [-1, 1].map(() => mk("path", { class: "sil" }, g));
-  const brows = mk("path", { class: "nf lo" }, g);
-  const eyes = [-1, 1].map(() => ({ lid: mk("path", { class: "" }, g), pupil: mk("path", { class: "dot" }, g), big: mk("path", { class: "fo", r: 1.9 }, g), small: mk("path", { class: "fo", r: 0.9 }, g) }));
-  const tongue = mk("path", { class: "" }, g), tongueLine = mk("path", { class: "nf lo" }, g);
-  const muzzle = mk("path", { class: "sil" }, g), nose = mk("path", { class: "" }, g), mouth = mk("path", { class: "nf lo" }, g);
+  // the head: skull, cheeks and muzzle in one outline; the ears are soft flaps, the far one before the head
+  const earBack = mk("path", { class: "sil" }, g), head = mk("path", { class: "sil" }, g), earFront = mk("path", { class: "sil" }, g);
+  const tongue = mk("path", { class: "" }, g), mouth = mk("path", { class: "nf lo" }, g), lids = mk("path", { class: "nf" }, g);
+  const eyes = [0, 1].map(() => mk("circle", { r: 1.7, class: "dot" }, g));
+  const nose = mk("ellipse", { rx: 2, ry: 1.4, class: "dot" }, g);
 
-  // the collar: a band round the neck, drawn where it faces the eye, and a round tag hanging from it
-  const NK = add(add(CH, body.F, 1.5), [0, 0, 4.5]);
-  const band = (z) => Array.from({ length: 25 }, (_, k) => { const t = rad(-180 + k * 7.5); return W(add(add(add(NK, body.Rt, 8.2 * Math.cos(t)), body.F, -6.8 * Math.sin(t)), [0, 0, z])); });
-  mk("path", { d: poly([...band(1.4), ...band(-1.4).reverse()]), class: "sil" }, g);
-  const tagC = W(add(add(NK, body.F, 7), [0, 0, -3.6]));
-  mk("path", { d: open([W(add(add(NK, body.F, 6.9), [0, 0, -1.2])), [tagC[0], tagC[1] - 5]]), class: "nf lo" }, g);
-  const disc = (r) => poly(Array.from({ length: 20 }, (_, k) => [tagC[0] + r * Math.cos((k / 20) * 2 * Math.PI), tagC[1] + r * Math.sin((k / 20) * 2 * Math.PI)]));
-  mk("path", { d: disc(4.6), class: "" }, g); mk("path", { d: disc(2.6), class: "nf lo" }, g);
-
-  [head, ...ears, brows, ...eyes.flatMap((e) => [e.lid, e.pupil, e.big, e.small]), tongue, tongueLine, muzzle, nose, mouth].forEach((el) => g.append(el));
-
-  const yw = spring(REST.yaw), pt = spring(REST.pitch), wake = spring(0);
-  let phase = 0, drawn = "";
-  function draw() {
-    const a = clamp(wake.x, 0, 1.2), op = clamp(a, 0, 1), dark = isDark(), key = [yw.x, pt.x, a, phase].map((x) => x.toFixed(3)).join() + dark;
+  const yaw = spring(REST[0], { eps: 0.05 }), pitch = spring(REST[1], { eps: 0.05 }), wake = tween(0);
+  let drawn = "";
+  function draw(now) {
+    const wk = tval(wake, now), wag = reducedMotion() ? 0 : Math.sin(ph) * WAG * wk;
+    const key = [yaw.x, pitch.x, wk, wag].map((v) => v.toFixed(3)).join();
     if (key === drawn) return;
     drawn = key;
-    const fr = frame(45 - yw.x, pt.x, lerp(-12, 0, op));
-    const H = HC, F = (u, v, l = 0) => W(face(H, fr, HEAD, u, v, l));
-
-    // tail: low and out at rest; up and wagging when awake
-    const wag = rad(28 * op * Math.sin(phase * 2 * Math.PI));
-    const base = add(add(add(B0, body.Rt, 10), body.F, -6), [0, 0, -3]);
-    const tp = Array.from({ length: 14 }, (_, k) => {
-      const t = k / 13, up = lerp(2, 20, op) * t, out = lerp(15, 7, op) * t + 3 * t * t, back = -2 * t;
-      const ox = out * Math.cos(wag) - back * Math.sin(wag), of = out * Math.sin(wag) + back * Math.cos(wag);
-      return W(add(add(add(base, body.Rt, ox), body.F, of), [0, 0, up + 2 * Math.sin(Math.PI * t)]));
-    });
-    tail.setAttribute("d", tube(tp, 2.4 * 4.1, 1.3 * 4.1));
-
-    head.setAttribute("d", poly(hull(ell(H, HEAD, fr))));
-    // floppy ears hang at the sides of the head; awake, they lift and splay a little
-    ears.forEach((e, i) => {
-      const s = i ? 1 : -1, o = at(H, fr, HEAD, [s * lerp(1.0, 1.08, op), lerp(-0.05, 0.12, op), -0.15]);
-      const ear = frame(45 - yw.x, pt.x, lerp(-12, 0, op) + s * lerp(8, 24, op));
-      e.setAttribute("d", poly(hull(ell(add(o, ear.Up, 0), [2.1, 7.2, 4.6], ear))));
-    });
-    brows.setAttribute("d", [-1, 1].map((s) => poly(Array.from({ length: 12 }, (_, k) => { const t = (k / 12) * 2 * Math.PI; return F(s * 0.33 + 0.07 * Math.cos(t), 0.58 + lerp(0, 0.05, op) + 0.035 * Math.sin(t)); }))).join(""));
-
-    // eyes: shut in soft curves at rest; awake, big round eyes with sparkles
-    const ring = (cx, cy, rx, ry, n = 24) => poly(Array.from({ length: n }, (_, k) => { const t = (k / n) * 2 * Math.PI; return F(cx + rx * Math.cos(t), cy + ry * Math.sin(t)); }));
-    eyes.forEach((e, i) => {
-      const s = i ? 1 : -1, cx = s * 0.4, cy = 0.32, isOpen = op > 0.08, ry = 0.025 + 0.18 * op;
-      e.lid.setAttribute("d", isOpen ? ring(cx, cy, 0.17, ry) : open(Array.from({ length: 9 }, (_, k) => { const t = -1 + k / 4; return F(cx + 0.14 * t, cy - 0.05 * (1 - t * t)); })));
-      e.lid.setAttribute("class", isOpen ? (dark ? "dot" : "") : "nf"); e.pupil.setAttribute("class", dark ? "fo" : "dot");
-      e.pupil.setAttribute("d", isOpen ? ring(cx + 0.01, cy - 0.02, 0.125, Math.max(0.01, ry - 0.04)) : "");
-      for (const [el, dx, dy] of [[e.big, -0.045, 0.065], [e.small, 0.055, -0.065]]) {
-        el.setAttribute("display", op > 0.5 ? "inline" : "none"); el.setAttribute("class", dark ? "dot" : "fo");
-        const q = F(cx + dx, cy + dy * op), r = +el.getAttribute("r");
-        el.setAttribute("d", poly(Array.from({ length: 12 }, (_, k) => [q[0] + r * Math.cos((k / 12) * 2 * Math.PI), q[1] + r * Math.sin((k / 12) * 2 * Math.PI)])));
-      }
-    });
-
-    // the muzzle: a round snout on the front of the face, a big nose on top, the mouth below it, and a tongue when awake
-    const MC = at(H, fr, HEAD, [0, -0.52, 0.66]), M = (u, v, l = 0) => W(face(MC, fr, MUZ, u, v, l));
-    const tl = 5.5 * op;
-    tongue.setAttribute("d", op < 0.05 ? "" : poly([M(-0.3, -0.55), ...Array.from({ length: 9 }, (_, k) => { const t = Math.PI + (k / 8) * Math.PI; return W(add(face(MC, fr, MUZ, 0.3 * Math.cos(t), -0.62), fr.Up, -tl * (0.6 + 0.4 * -Math.sin(t)))); }), M(0.3, -0.55)]));
-    tongueLine.setAttribute("d", op < 0.05 ? "" : open([M(0, -0.6), W(add(face(MC, fr, MUZ, 0, -0.62), fr.Up, -tl * 0.65))]));
-    muzzle.setAttribute("d", poly(hull(ell(MC, MUZ, fr))));
-    nose.setAttribute("d", poly(Array.from({ length: 16 }, (_, k) => { const t = (k / 16) * 2 * Math.PI; return M(0.3 * Math.cos(t), 0.38 + 0.2 * Math.sin(t) - 0.06 * Math.max(0, -Math.sin(t)), 0.08); })));
-    mouth.setAttribute("d", open([M(0, 0.17), M(0, -0.18)]) + open([M(-0.48, -0.12), M(-0.24, -0.34), M(0, -0.18), M(0.24, -0.34), M(0.48, -0.12)]));
+    drawTail(wag);
+    const H = frame3([HC[0], HC[1], HZ - (1 - wk) * 1.4], rad(yaw.x), rad(pitch.x)), F = (u, v, h) => P(...H(u, v, h));
+    head.setAttribute("d", soft([ell(H, [0, 0, 6.8], [7.6, 7, 6.6]), ell(H, [-3.6, 3, 3.8], [3.6, 3.8, 3]), ell(H, [3.6, 3, 3.8], [3.6, 3.8, 3]), ell(H, [0, 6.6, 3.8], [3.8, 4.4, 3])], 4.5, 0.6));
+    // an ear is a long rounded flap hung from the top of the skull; awake it swings out
+    const sw = lerp(0.25, 0.7, wk);
+    const flap = (s) => soft([Array.from({ length: 20 }, (_, k) => { const t = (k / 20) * 2 * Math.PI, v = 3.4 * Math.cos(t) - 0.6, hh = 6.4 + 6.4 * Math.sin(t); return F(s * (6.2 + hh * Math.sin(sw)), v, 11.4 - hh * Math.cos(sw)); })], 2, 0.6);
+    const nearS = H(1, 0, 0)[0] + H(1, 0, 0)[1] > H(-1, 0, 0)[0] + H(-1, 0, 0)[1] ? 1 : -1;
+    earFront.setAttribute("d", flap(nearS)); earBack.setAttribute("d", flap(-nearS));
+    const front = (u, h) => F(u, 7 * Math.sqrt(Math.max(0.05, 1 - (u / 7.6) ** 2 - ((h - 6.8) / 6.6) ** 2)) + 0.3, h);
+    const awake = wk > 0.5;
+    lids.setAttribute("d", awake ? "" : [-1, 1].map((s) => open([-1.8, -0.9, 0, 0.9, 1.8].map((d) => front(s * 3.6 + d, 8.6 - 0.8 * (1 - (d / 1.8) ** 2))))).join(""));
+    eyes.forEach((e, i) => { e.setAttribute("display", awake ? "inline" : "none"); place(e, front((i ? 1 : -1) * 3.6, 8.6)); });
+    place(nose, F(0, 10.9, 5.4));
+    // the mouth, and the snout's ridge where it rises from the face
+    mouth.setAttribute("d", open([F(-2.6, 9.6, 2.4), F(-1.2, 10.4, 1.8), F(0, 10.8, 2.8), F(1.2, 10.4, 1.8), F(2.6, 9.6, 2.4)]) +
+      open(Array.from({ length: 9 }, (_, k) => { const u = -3.2 + k * 0.8; return F(u, 7.2, 3.8 + 2.9 * Math.sqrt(Math.max(0, 1 - (u / 3.8) ** 2 - 0.02))); })));
+    tongue.setAttribute("d", wk < 0.05 ? "" : poly([[-1.5, 0], [-1.6, -2.6 * wk], [-0.8, -3.6 * wk], [0.8, -3.6 * wk], [1.6, -2.6 * wk], [1.5, 0]].map(([u, z]) => F(u, 10.2, 1.9 + z))));
   }
-  draw();
-  // the wag runs only while the dog is awake and visible; reduced motion holds the tail still
-  const B = register(stage, (dt) => {
-    const m = [stepS(yw, dt), stepS(pt, dt), stepS(wake, dt)].some(Boolean), awake = wake.t > 0 && !reducedMotion();
-    phase = awake ? (phase + dt * WAG_HZ) % 1 : wake.x < 0.02 ? 0 : phase;
-    draw();
-    return m || awake;
+  draw(performance.now());
+
+  let on = false;
+  const B = register(stage, (dt, now) => {
+    const m = [stepS(yaw, dt), stepS(pitch, dt)].some(Boolean);
+    if (tval(wake, now) > 0.01 && !reducedMotion()) ph += dt * 13;
+    draw(now);
+    return m || !tdone(wake, now) || (on && !reducedMotion());
   });
   bag.add(B.unregister);
 
-  const [hx, hy] = W(HC);
-  const DIRS = ["e", "ne", "n", "nw", "w", "sw", "s", "se"];
+  // the head's centre on screen never moves; the pointer is read against it
+  const [hx, hy] = P(HC[0], HC[1], HZ + 7);
   function watch(p) {
-    const on = !!p;
-    const y = on ? clamp((p[0] - hx) / 130, -1, 1) * reach : REST.yaw;
-    const q = on ? clamp((hy - p[1]) / 110, -1, 1) * reach * 0.6 : REST.pitch;
-    yw.t = y; pt.t = q; wake.t = on ? 1 : 0;
-    nose.classList.toggle("hi", !on);
-    const near = Math.hypot(y, q / 0.6) < reach * 0.3;
-    read.textContent = !on ? "rest" : near ? "watch" : "watch " + DIRS[(Math.round(Math.atan2(q / 0.6, y) / (Math.PI / 4)) + 8) % 8];
+    on = !!p;
+    const ty = on ? clamp((p[0] - hx) / 130, -1, 1) * reach : REST[0], tp = on ? clamp((hy - p[1]) / 110, -1, 1) * reach * 0.7 : REST[1];
+    yaw.t = ty; pitch.t = tp;
+    tset(wake, on ? 1 : 0, performance.now(), 0);
+    head.classList.toggle("hi", on);
+    nose.setAttribute("class", on ? "dot m" : "dot");
+    read.textContent = !on ? "rest" : Math.hypot(ty, tp / 0.7) < reach * 0.3 ? "watch" : "watch " + DIRS[(Math.round(Math.atan2(tp / 0.7, ty) / (Math.PI / 4)) + 8) % 8];
     B.wake();
   }
   watch(null);
@@ -185,16 +186,13 @@ function mount({ stage, svg, read }, value) {
   bag.add(pointer(stage, { move: watch, leave: () => watch(null) }));
   bag.add(() => svg.replaceChildren());
 
-  return {
-    set: (v) => { reach = v; },
-    destroy: bag.dispose,
-  };
+  return { set: (v) => { reach = v; }, destroy: bag.dispose };
 }
 
 hairline({
   name: "dog",
-  means: "A puppy dozing in its collar: bring the pointer near and it wakes, ears up, tongue out, tail wagging, and watches.",
-  rules: [1, 3, 5, 7],
-  range: [15, 25, 35],
+  means: "A puppy dozing on its bed: bring the pointer near and it wakes, ears up, tongue out, tail wagging, and watches.",
+  rules: [1, 5, 7, 9],
+  range: [15, 28, 40],
   mount,
 });

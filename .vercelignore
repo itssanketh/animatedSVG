@@ -2,3 +2,4 @@
 .playwright-mcp/
 .env*
 !og.png
+hairline-figure.html

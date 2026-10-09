@@ -719,7 +719,7 @@ var HL = (() => {
 </script>
 <script type="module" id="hl-figure">
 /**
- * Gaze: an acrylic standee of one anime eye, a heavy upper lash with a flick at
+ * Gaze: an acrylic standee of one anime eye, die-cut round its artwork, a heavy upper lash with a flick at
  * the corner, a tall iris with two shines, a thin lower lid and a brow. At rest
  * it glances up and aside. Anywhere on the stage, the iris turns to the
  * pointer on two springs, the pupil leading it a little and the shines lagging,
@@ -744,42 +744,49 @@ const cubic = (a, b, c, d, n = 16) => Array.from({ length: n + 1 }, (_, k) => {
 });
 const UPPER = cubic([-25, 41], [-16, 59], [12, 61], [27, 47]);
 const LOWER = cubic([-25, 41], [-12, 29], [14, 28], [27, 47]);
+const BROW = cubic([-20, 68], [-8, 74], [10, 75], [24, 69], 10);
+// the artwork sits V0 up the panel, which stands on a short tab in the foot
+const V0 = 22;
 const oval = (cx, cy, rx, ry, n = 28) => Array.from({ length: n }, (_, k) => [cx + rx * Math.cos((k / n) * 2 * Math.PI), cy + ry * Math.sin((k / n) * 2 * Math.PI)]);
 
 function mount({ stage, svg, read }, value) {
   const bag = disposer();
   let reach = value;
 
-  const C = Cam(45, 0.5, 2.3);
+  const C = Cam(45, 0.5, 2.7);
   /** A point on the standee: u across its face, v up, d out of its face toward the eye. */
-  const W = (u, v, d) => [u * U[0] + d * N[0], u * U[1] + d * N[1], v];
-  const panel = rrect(-40, 6, 40, 84, 13, 6).map((q) => [q.u, q.v]);
+  const W = (u, v, d) => [u * U[0] + d * N[0], u * U[1] + d * N[1], v - V0];
+  // die-cut: the eye's lids, lash and brow, a tab down into the foot, grown by a margin and hulled
+  const art = [...UPPER, ...LOWER, [34, 56], ...BROW, [-12, V0 + 3], [12, V0 + 3]];
+  const cut = (m) => hull(art.flatMap(([u, v]) => Array.from({ length: 32 }, (_, k) => [u + m * Math.cos(k * Math.PI / 16), v + m * Math.sin(k * Math.PI / 16)])));
+  const panel = cut(7.5), crease = cut(5.6);
   const foot = rrect(-26, -9, 26, 9, 5, 5);
-  fit(C, panel.flatMap(([u, v]) => [W(u, v, T / 2), W(u, v, -T / 2)]).concat(foot.map((q) => W(q.u, 0, q.v))), 200, 162);
+  fit(C, panel.flatMap(([u, v]) => [W(u, v, T / 2), W(u, v, -T / 2)]).concat(foot.map((q) => W(q.u, V0, q.v))), 200, 162);
   const P = proj(C);
   const Q = ([u, v], d = T / 2) => P(...W(u, v, d));
   const shape = (pts, d) => poly(pts.map((p) => Q(p, d)));
 
   const g = mk("g", {}, svg);
   // the foot, a rounded block the panel stands in; its far half is under the panel
-  const fAt = (z) => foot.map((q) => P(...W(q.u, z, q.v)));
-  const fIn = rrect(-24.6, -7.6, 24.6, 7.6, 3.6, 5).map((q) => P(...W(q.u, 7, q.v)));
+  const fAt = (z) => foot.map((q) => P(...W(q.u, V0 + z, q.v)));
+  const fIn = rrect(-24.6, -7.6, 24.6, 7.6, 3.6, 5).map((q) => P(...W(q.u, V0 + 7, q.v)));
   const fring = foot.map((q) => ({ u: q.u, v: q.v, nu: q.nu, nv: q.nv }));
-  reflect(svg, g, (x, y, z) => P(...W(x, z, y)), () => true, fring, 0, 10);
+  reflect(svg, g, (x, y, z) => P(...W(x, V0 + z, y)), () => true, fring, 0, 10);
   mk("path", { d: poly(hull(fAt(0).concat(fAt(7)))), class: "sil" }, g);
   mk("path", { d: poly(fIn), class: "nf lo" }, g);
 
   // the panel: its back shell, then its face
   mk("path", { d: shape(panel, -T / 2), class: "lo" }, g);
   mk("path", { d: shape(panel, T / 2), class: "sil" }, g);
-  mk("path", { d: shape(rrect(-36.5, 9.5, 36.5, 80.5, 9.5, 6).map((q) => [q.u, q.v])), class: "nf lo" }, g);
 
   // the eye, back to front: iris, pupil, shines, then the plates that cut it, then the lids
   const iris = mk("path", { class: "sil" }, g), ring = mk("path", { class: "nf lo" }, g), pupil = mk("path", { class: "nf" }, g);
   const streaks = mk("path", { class: "nf lo" }, g);
   const shine = mk("circle", { r: 2.6, class: "dot" }, g), glint = mk("circle", { r: 1.2, class: "dot m" }, g);
-  mk("path", { d: shape([...UPPER, [36, 47], [36, 78], [-36, 78], [-36, 41]]), class: "fo" }, g);
-  mk("path", { d: shape([...LOWER, [36, 47], [36, 12], [-36, 12], [-36, 41]]), class: "fo" }, g);
+  // cover plates over the iris's whole travel, kept inside the crease so they never cut the panel's edges
+  mk("path", { d: shape([...UPPER, [28, 50], [22, 66], [-18, 66], [-26, 43]]), class: "fo" }, g);
+  mk("path", { d: shape([...LOWER, [28, 46], [21, 25], [-17, 25], [-26, 40]]), class: "fo" }, g);
+  mk("path", { d: shape(crease), class: "nf lo" }, g);
   mk("path", { d: open(LOWER.slice(3, 15).map((p) => Q(p))), class: "nf" }, g);
   // the upper lash: thick in the middle, a flick past the outer corner, standing proud of the face
   const top = UPPER.map(([u, v], k) => { const t = k / (UPPER.length - 1); return [u - 0.6 * t, v + 1 + 4.2 * Math.sin(Math.PI * Math.min(1, t * 1.1))]; });
@@ -787,7 +794,7 @@ function mount({ stage, svg, read }, value) {
   mk("path", { d: shape(lash, T / 2 + 0.2), class: "lo" }, g);
   mk("path", { d: shape(lash, T / 2 + 1.4), class: "sil" }, g);
   mk("path", { d: [[[8, 62.5], [10, 67]], [[15, 61], [18.5, 65]], [[21, 58.5], [25, 61.5]]].map(([a, b]) => open([Q(a, T / 2 + 1.4), Q(b, T / 2 + 1.4)])).join(""), class: "nf" }, g);
-  mk("path", { d: open(cubic([-20, 68], [-8, 74], [10, 75], [24, 69], 10).map((p) => Q(p))), class: "nf" }, g);
+  mk("path", { d: open(BROW.map((p) => Q(p))), class: "nf" }, g);
 
   const iu = spring(REST[0]), iv = spring(REST[1]);
   let drawn = "";

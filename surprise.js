@@ -15,12 +15,12 @@ const {
 } = HL;
 
 const B = 60, H = 40, WT = 2, OV = 2.5, LD = 8, LT = 2.5, RIB = 3.2;
-const REST_TILT = 7, OPEN_TILT = 58, LIFT = 22, PHI = rad(-28), T = 4.2, G = 1.7;
+const REST_TILT = 7, OPEN_TILT = 62, LIFT = 10, PHI = rad(-28), T = 4.2, G = 1.7;
 
 /** The question mark's outline in its own plane, u across and v up: a bent bar, and a ball under it. */
 function glyph() {
   const pts = [];
-  for (let k = 0; k <= 16; k++) { const a = rad(158 - (k * 208) / 16); pts.push([9 * Math.cos(a), 29 + 9 * Math.sin(a)]); }
+  for (let k = 0; k <= 32; k++) { const a = rad(158 - (k * 208) / 32); pts.push([9 * Math.cos(a), 29 + 9 * Math.sin(a)]); }
   pts.push([2.4, 18.2], [0.6, 15.2], [0, 12.6], [0, 11]);
   const h = 3, L = [], R = [];
   pts.forEach((p, i) => {
@@ -30,12 +30,12 @@ function glyph() {
   });
   const cap = (p, from, to) => {
     const a0 = Math.atan2(from[1] - p[1], from[0] - p[0]), out = [];
-    for (let k = 1; k < 6; k++) { const a = a0 - (k * Math.PI) / 6; out.push([p[0] + h * Math.cos(a), p[1] + h * Math.sin(a)]); }
+    for (let k = 1; k < 10; k++) { const a = a0 - (k * Math.PI) / 10; out.push([p[0] + h * Math.cos(a), p[1] + h * Math.sin(a)]); }
     return out;
   };
   const n = pts.length - 1;
   const bar = [...L, ...cap(pts[n], L[n], R[n]), ...R.reverse(), ...cap(pts[0], R[R.length - 1], L[0])];
-  const ball = Array.from({ length: 20 }, (_, k) => [3.4 * Math.cos((k * Math.PI) / 10), 3.6 + 3.4 * Math.sin((k * Math.PI) / 10)]);
+  const ball = Array.from({ length: 32 }, (_, k) => [3.3 * Math.cos((k * Math.PI) / 16), 2.4 + 3.3 * Math.sin((k * Math.PI) / 16)]);
   return { bar, ball };
 }
 
@@ -43,7 +43,7 @@ function mount({ stage, svg, read }, value) {
   const bag = disposer();
   let rise = value;
 
-  const C = Cam(45, 0.5, 1.58);
+  const C = Cam(45, 0.5, 1.8);
   const U = [Math.cos(PHI), Math.sin(PHI)], N = [-Math.sin(PHI), Math.cos(PHI)];
   const top = (r, p) => H + 4 + r * p - 2;
   fit(C, [[-OV, -OV, 0], [B + OV, B + OV, 0], [B + OV, -OV, 0], [-OV, B + OV, 0], [B / 2, B / 2, top(16, 1.15) + 42 * G * 1.12], [B / 2 - 6, -OV - 30, H + LIFT * 1.2 + 40]], 200, 168);

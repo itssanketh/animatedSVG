@@ -95,6 +95,15 @@
   .card iframe { display: block; width: 100%; height: 520px; border: 0; border-bottom: 1px solid var(--line); background: var(--ground); }
   .card .body { padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .card h3 { margin: 0; text-transform: capitalize; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; }
+  .tabs button[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+  .tabs span { color: var(--muted); }
+  .tabs button[aria-pressed="true"] span { color: inherit; opacity: .7; }
+  .cat { margin-top: 56px; padding: 0; border-top: 0; }
+  .cat[hidden] { display: none; }
+  .cat > header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .cat > header h3 { font-size: 22px; margin: 0; }
+  .cat .grid { margin-top: 24px; }
   .actions { display: flex; flex-wrap: wrap; gap: 6px; }
   .actions button, .actions .btn { height: 32px; padding: 0 11px; }
 
@@ -162,7 +171,7 @@
         <a class="btn primary" href="#gallery">Browse the gallery</a>
         <a class="btn" href="#how">How to use it</a>
       </div>
-      <div class="facts mono"><span>7 figures</span><span>0 dependencies</span><span>light + dark</span><span>free to use</span></div>
+      <div class="facts mono"><span id="count">12 figures</span><span>0 dependencies</span><span>light + dark</span><span>free to use</span></div>
     </div>
     <div class="stage">
       <iframe src="hairline-cat.html" title="Live demo: a cat that wakes and watches the pointer"></iframe>
@@ -190,7 +199,8 @@
       <span class="eyebrow">Gallery</span>
       <h2>Pick a figure. Take the code.</h2>
       <p class="lede">Every figure below is running live. Hover it, then copy the full code or an embed snippet for your own site.</p>
-      <div class="grid" id="grid"></div>
+      <div class="tabs mono" id="tabs" role="group" aria-label="Filter by category"></div>
+      <div id="cats"></div>
     </div>
   </section>
 
@@ -234,7 +244,7 @@
         <h2>Made by Sanketh.</h2>
         <p class="lede">animatedSVG is built by Sanketh, a final-year BCA student and developer. The goal is simple: give every website a bit of life without making it heavier or harder to maintain.</p>
         <ul class="role">
-          <li><strong>Built by Sanketh:</strong> the seven figures (their shapes, motion and pointer behaviour), the gallery, the copy, embed and download tooling, and this site.</li>
+          <li><strong>Built by Sanketh:</strong> every figure (its shapes, motion and pointer behaviour), the gallery, the copy, embed and download tooling, and this site.</li>
           <li><strong>Built on Hairline:</strong> the 3D-to-line engine that projects the shapes and draws them as SVG is <a href="https://github.com/lucasmarkes/hairline" target="_blank" rel="noopener">Hairline</a> by Lucas Marques, used under the MIT license.</li>
         </ul>
         <div class="cta" style="margin-top:28px">
@@ -276,9 +286,18 @@
 </template>
 
 <script>
-const FIGURES = ["cat", "dog", "gaze", "book", "laptop", "speaker", "surprise"];
+const CATEGORIES = [
+  ["Animals", ["cat", "dog", "hedgehog", "turtle", "birds", "fish", "frog"]],
+  ["Tech", ["laptop", "speaker"]],
+  ["Objects", ["book", "gaze", "surprise"]],
+  ["Marks", ["ubuntu", "debian", "fedora", "arch", "manjaro", "nixos", "zorin"]],
+];
+// shown under a category's heading
+const NOTES = { Marks: "Linux distribution logos, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them." };
+const FIGURES = CATEGORIES.flatMap(([, names]) => names);
+document.getElementById("count").textContent = `${FIGURES.length} figures`;
 
-const grid = document.getElementById("grid"), tpl = document.getElementById("card"), toast = document.getElementById("toast");
+const cats = document.getElementById("cats"), tabs = document.getElementById("tabs"), tpl = document.getElementById("card"), toast = document.getElementById("toast");
 let timer;
 function say(msg) {
   toast.textContent = msg; toast.classList.add("on");
@@ -289,7 +308,28 @@ async function copy(text, msg) {
   catch { say("Copy failed. Use Download instead."); }
 }
 
-for (const name of FIGURES) {
+const sections = {}, buttons = [];
+function show(which) {
+  for (const [cat, sec] of Object.entries(sections)) sec.hidden = which !== "All" && which !== cat;
+  for (const b of buttons) b.setAttribute("aria-pressed", String(b.dataset.cat === which));
+}
+for (const [cat, n] of [["All", FIGURES.length], ...CATEGORIES.map(([c, names]) => [c, names.length])]) {
+  const b = document.createElement("button");
+  b.dataset.cat = cat;
+  b.innerHTML = `${cat} <span>${n}</span>`;
+  b.onclick = () => show(cat);
+  buttons.push(b); tabs.append(b);
+}
+for (const [cat, names] of CATEGORIES) {
+  const sec = document.createElement("section");
+  sec.className = "cat";
+  sec.innerHTML = `<header><h3>${cat}</h3><span class="mono" style="color:var(--muted)">${names.length} figures</span></header>${NOTES[cat] ? `<p class="lede" style="margin-top:14px;font-size:14px">${NOTES[cat]}</p>` : ""}<div class="grid"></div>`;
+  sections[cat] = sec; cats.append(sec);
+}
+show("All");
+
+for (const [cat, names] of CATEGORIES) for (const name of names) {
+  const grid = sections[cat].querySelector(".grid");
   const file = `hairline-${name}.html`, url = new URL(file, location.href).href, node = tpl.content.cloneNode(true);
   const frame = node.querySelector("iframe");
   frame.src = file;

@@ -719,8 +719,8 @@ var HL = (() => {
 </script>
 <script type="module" id="hl-figure">
 /**
- * Speaker: a standing cabinet with a woofer and a tweeter. At rest two still
- * wavefronts hang just off the cone, the last of a note. Hover the cabinet and
+ * Speaker: a standing cabinet with a woofer, a tweeter and a bass port, silent
+ * at rest with the tweeter's dome bright. Hover the cabinet and
  * it plays: the cone kicks on every beat and each kick sends a wavefront out,
  * widening as it travels. Nearer the cone is louder, so the waves reach
  * further. The volume rides a spring; the beat is ambient and stops once the
@@ -729,18 +729,18 @@ var HL = (() => {
  * The hit test is the cabinet's resting outline on screen, which never moves.
  */
 const {
-  Cam, clamp, circ, facing, fit, hull, lerp, poly, prism, proj, put, reducedMotion, rings, ringAt, solid,
+  Cam, clamp, circ, facing, fit, hull, poly, prism, proj, put, reducedMotion, rings, ringAt, rrect, solid,
   spring, stepS, disposer, mk, place, pointer, reflect, register,
 } = HL;
 
 const W = 50, DP = 42, H = 84, WZ = 32, TZ = 68, RW = 17, RC = 14.5, RT = 7;
-const K = 4, REACH = 64, GROW = 14, KICK = 5;
+const K = 4, REACH = 40, GROW = 10, KICK = 5;
 
 function mount({ stage, svg, read }, value) {
   const bag = disposer();
   let bpm = value, ph = 0;
 
-  const C = Cam(45, 0.5, 2.05);
+  const C = Cam(45, 0.5, 2.25);
   fit(C, [[0, 0, 0], [W, 0, H], [0, 0, H], [W, DP, 0], [W / 2 + RW + GROW, DP + 6 + REACH, WZ], [W / 2 - RW - GROW, DP + 6 + REACH, WZ], [W / 2, DP + 6 + REACH, WZ - RW - GROW]], 200, 166);
   const P = proj(C), front = facing(C);
   /** A circle of radius r on the plane y, centred at (cx, cz): the front face and everything in front of it. */
@@ -759,11 +759,13 @@ function mount({ stage, svg, read }, value) {
     const a = Math.PI / 4 + (k * Math.PI) / 2;
     place(mk("circle", { r: 1.1, class: "dot off" }, g), P(W / 2 + 20.5 * Math.cos(a), DP, WZ + 20.5 * Math.sin(a)));
   }
+  // the bass port: a rounded slot under the woofer
+  mk("path", { d: poly(rrect(W / 2 - 11, 6, W / 2 + 11, 11, 2.5, 5).map((q) => P(q.u, DP, q.v))), class: "nf" }, g);
   // the tweeter: a ring and a dome, the bright mark at rest
   mk("path", { d: disc(RT, DP, W / 2, TZ), class: "nf lo" }, g);
   const dome = mk("path", { d: disc(4.4, DP + 1.2, W / 2, TZ), class: "sil hi" }, g);
 
-  // wavefronts, in front of the face; rest holds them close and dashed
+  // wavefronts, in front of the face; silent at rest
   const waves = [];
   for (let k = 0; k < K; k++) waves.push(mk("path", { class: "nf lo dash" }, g));
 
@@ -778,11 +780,8 @@ function mount({ stage, svg, read }, value) {
     cap.setAttribute("d", disc(5.2, DP - 3 + push, W / 2, WZ));
     waves.forEach((el, k) => {
       const f = (b + k) / K;
-      // rest: two still fronts close to the cone; the others sit folded on the first
-      const rd = 5 + Math.min(k, 1) * 5, rr = RW + 2 + Math.min(k, 1) * 3;
-      const d = lerp(rd, 6 + f * REACH * v, clamp(v * 3, 0, 1)), r = lerp(rr, RW + f * GROW, clamp(v * 3, 0, 1));
-      el.setAttribute("d", disc(r, DP + d, W / 2, WZ));
-      el.setAttribute("class", v < 0.02 ? "nf lo dash" : f < 0.3 ? "nf" : "nf lo");
+      el.setAttribute("d", v < 0.02 ? "" : disc(RW + f * GROW, DP + 6 + f * REACH * v, W / 2, WZ));
+      el.setAttribute("class", f < 0.3 ? "nf" : f > 0.75 ? "nf lo dash" : "nf lo");
     });
   }
   draw();
