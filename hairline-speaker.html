@@ -46,7 +46,6 @@
   #means { margin: 14px 0 0; text-wrap: pretty; }
   #rules { margin: 6px 0 0; line-height: 1.6; }
   #error { margin: 12px 0 0; padding-left: 10px; border-left: 1px solid var(--ink); }
-  #stage { aspect-ratio: 5 / 4; } /* the engine's own box, set here too so the page doesn't jump when the figure mounts */
 </style>
 </head>
 <body>
@@ -63,8 +62,8 @@
     <span class="label">theme</span>
     <button id="theme" type="button" aria-label="Switch between the light and the dark theme"></button>
   </div>
-  <p id="means">A speaker cabinet: hover it and the cone kicks on the beat, each kick sending a wavefront out; nearer the cone is louder.</p>
-  <p id="rules" class="label">01 hit · 03 reach · 05 rest · 07 cost</p>
+  <p id="means"></p>
+  <p id="rules" class="label"></p>
   <p id="error" role="alert" hidden></p>
 </main>
 <script id="hl-kernel">

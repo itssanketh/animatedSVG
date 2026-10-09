@@ -46,7 +46,6 @@
   #means { margin: 14px 0 0; text-wrap: pretty; }
   #rules { margin: 6px 0 0; line-height: 1.6; }
   #error { margin: 12px 0 0; padding-left: 10px; border-left: 1px solid var(--ink); }
-  #stage { aspect-ratio: 5 / 4; } /* the engine's own box, set here too so the page doesn't jump when the figure mounts */
 </style>
 </head>
 <body>
@@ -63,8 +62,8 @@
     <span class="label">theme</span>
     <button id="theme" type="button" aria-label="Switch between the light and the dark theme"></button>
   </div>
-  <p id="means">Ubuntu's Circle of Friends: hover it and the three heads and three arms drift apart; leave and they come back together.</p>
-  <p id="rules" class="label">01 hit · 02 order · 08 clock · 10 quiet</p>
+  <p id="means"></p>
+  <p id="rules" class="label"></p>
   <p id="error" role="alert" hidden></p>
 </main>
 <script id="hl-kernel">
@@ -774,7 +773,7 @@ function mount({ stage, svg, read }, value) {
   }
   draw(performance.now());
 
-  const B = register(stage, (_dt, now) => { draw(now); return !pieces.every((p) => tdone(p.out, now)); });
+  const B = register(stage, (_dt) => { const now = performance.now(); /* not the frame's timestamp: in a lazy iframe it runs seconds behind the clock tset was given */ draw(now); return !pieces.every((p) => tdone(p.out, now)); });
   bag.add(B.unregister);
 
   // the hit test: a fixed disc round the resting mark; the nearest piece by angle starts the spread

@@ -43,7 +43,7 @@ function mount({ stage, svg, read }, value) {
   }
   draw(performance.now());
 
-  const B = register(stage, (_dt, now) => { draw(now); return !bars.every((b) => tdone(b.out, now)); });
+  const B = register(stage, (_dt) => { const now = performance.now(); /* not the frame's timestamp: in a lazy iframe it runs seconds behind the clock tset was given */ draw(now); return !bars.every((b) => tdone(b.out, now)); });
   bag.add(B.unregister);
 
   // the hit test: each bar's resting outline on screen, as its box

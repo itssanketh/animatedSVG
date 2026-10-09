@@ -46,7 +46,6 @@
   #means { margin: 14px 0 0; text-wrap: pretty; }
   #rules { margin: 6px 0 0; line-height: 1.6; }
   #error { margin: 12px 0 0; padding-left: 10px; border-left: 1px solid var(--ink); }
-  #stage { aspect-ratio: 5 / 4; } /* the engine's own box, set here too so the page doesn't jump when the figure mounts */
 </style>
 </head>
 <body>
@@ -63,8 +62,8 @@
     <span class="label">theme</span>
     <button id="theme" type="button" aria-label="Switch between the light and the dark theme"></button>
   </div>
-  <p id="means">A hardback on a desk: the pointer thumbs through it, the leaf under it stands and the rest fall open in turn.</p>
-  <p id="rules" class="label">01 hit · 02 order · 06 honesty · 08 clock</p>
+  <p id="means"></p>
+  <p id="rules" class="label"></p>
   <p id="error" role="alert" hidden></p>
 </main>
 <script id="hl-kernel">
@@ -808,7 +807,7 @@ function mount({ stage, svg, read }, value) {
   }
 
   let order = "";
-  const B = register(stage, (_dt, now) => {
+  const B = register(stage, (_dt) => { const now = performance.now(); /* not the frame's timestamp: in a lazy iframe it runs seconds behind the clock tset was given */
     let moving = false;
     for (const lf of leaves) { draw(lf, tval(lf.tw, now)); if (!tdone(lf.tw, now)) moving = true; }
     // far from the edge-on angle first

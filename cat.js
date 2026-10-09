@@ -52,13 +52,8 @@ function soft(shapes, k = 2.5, step = 0.7) {
     for (const p of parts) {
       const bx = Math.max(p.x0 - x, x - p.x1, 0), by = Math.max(p.y0 - y, y - p.y1, 0), bd = Math.sqrt(bx * bx + by * by), pl = p.pl;
       let d = bd;
-      if (bd < k + 1) {
-        d = -1e9;
-        for (let q = 0; q < pl.length && d < v + k; q += 3) { const e = pl[q] * x + pl[q + 1] * y - pl[q + 2]; if (e > d) d = e; }
-        if (d >= v + k) continue; // the smooth min ignores a shape k or more above v
-      }
-      const hh = Math.max(k - Math.abs(v - d), 0) / k; v = Math.min(v, d) - hh * hh * k * 0.25;
-      if (d < -2 * step) break; // deep inside: every neighbour is inside too, so only the sign matters
+      if (bd < k + 1) { d = -1e9; for (let q = 0; q < pl.length && d < v + k; q += 3) { const e = pl[q] * x + pl[q + 1] * y - pl[q + 2]; if (e > d) d = e; } if (d >= v + k) continue; } // k above v: the smooth min ignores it
+      const hh = Math.max(k - Math.abs(v - d), 0) / k; v = Math.min(v, d) - hh * hh * k * 0.25; if (d < -2 * step) break; // deep inside: only the sign matters now
     }
     f[j * W + i] = v;
   }
@@ -177,7 +172,7 @@ function mount({ stage, svg, read }, value) {
   }
   draw(performance.now());
 
-  const B = register(stage, (dt, now) => { const m = [stepS(yaw, dt), stepS(pitch, dt)].some(Boolean); draw(now); return m || !tdone(wake, now); });
+  const B = register(stage, (dt) => { const now = performance.now(); /* not the frame's timestamp: in a lazy iframe it runs seconds behind the clock tset was given */ const m = [stepS(yaw, dt), stepS(pitch, dt)].some(Boolean); draw(now); return m || !tdone(wake, now); });
   bag.add(B.unregister);
 
   // the head's centre on screen never moves; the pointer is read against it

@@ -55,7 +55,7 @@ function mount({ stage, svg, read }, value) {
   }
   draw(performance.now());
 
-  const B = register(stage, (_dt, now) => { draw(now); return !ls.every((l) => tdone(l.tw, now)); });
+  const B = register(stage, (_dt) => { const now = performance.now(); /* not the frame's timestamp: in a lazy iframe it runs seconds behind the clock tset was given */ draw(now); return !ls.every((l) => tdone(l.tw, now)); });
   bag.add(B.unregister);
 
   // the hit test: a fixed disc round the resting mark; the lambda nearest the pointer by angle starts the spread

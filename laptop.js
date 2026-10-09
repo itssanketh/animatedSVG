@@ -97,7 +97,7 @@ function mount({ stage, svg, read }, value) {
   }
   draw(performance.now());
 
-  const B = register(stage, (dt, now) => { const m = stepS(ang, dt); draw(now); return m || !tdone(awake, now); });
+  const B = register(stage, (dt) => { const now = performance.now(); /* not the frame's timestamp: in a lazy iframe it runs seconds behind the clock tset was given */ const m = stepS(ang, dt); draw(now); return m || !tdone(awake, now); });
   bag.add(B.unregister);
 
   // hit band: across the footprint, from the base's front edge up to the top of the widest swing

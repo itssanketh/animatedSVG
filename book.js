@@ -87,7 +87,7 @@ function mount({ stage, svg, read }, value) {
   }
 
   let order = "";
-  const B = register(stage, (_dt, now) => {
+  const B = register(stage, (_dt) => { const now = performance.now(); /* not the frame's timestamp: in a lazy iframe it runs seconds behind the clock tset was given */
     let moving = false;
     for (const lf of leaves) { draw(lf, tval(lf.tw, now)); if (!tdone(lf.tw, now)) moving = true; }
     // far from the edge-on angle first
