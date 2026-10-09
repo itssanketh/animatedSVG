@@ -721,9 +721,9 @@ var HL = (() => {
 /**
  * Fedora: the speech bubble, round with one square corner, as a thick plate
  * facing you with nothing under it, its f raised from the face. Hover the
- * bubble and the f slithers like a snake, a wave running down it from hook to
- * tail, and settles back where it was; once per visit, never on a loop. The
- * slider is how long the slither takes, in ms. A tribute: the mark belongs to Red Hat and the Fedora
+ * bubble and the f comes apart: its bar and its stem fly apart, turning, then
+ * wind back and lock into the f again; once per visit, never on a loop. The
+ * slider is how long the split takes, in ms. A tribute: the mark belongs to Red Hat and the Fedora
  * Project.
  *
  * Bubble and f are extruded plates: back face, sides, front face. The hit test
@@ -774,46 +774,47 @@ function mount({ stage, svg, read }, value) {
   stem.face.classList.add("hi"); bar.face.classList.add("hi");
   setPlate(bub, bubble(), 0, T);
   const f = [[bar, ribbon(BAR, 0.075)], [stem, ribbon(STEM, 0.075)]];
-  // the slither: a wave runs down the f from hook to tail, swelling then dying away, so the f ends where it began
-  const bend = (v, t) => 0.09 * Math.sin(Math.PI * t) * Math.sin(7 * v + 4 * Math.PI * t);
-  const BEND_BAR = BAR[0][1];
-
-  let wave = tween(0, dur), drawn = NaN;
+  // the split: the bar and the stem fly apart, each turning about its own middle, then wind back and lock into the f
+  // each piece: its middle, how far it travels (u, v) and how far it turns, in degrees, at the height of the split
+  const PIECES = [[bar, f[0][1], [0.05, 0.04], [-0.42, 0.1], -50], [stem, f[1][1], [0.07, 0], [0.22, -0.08], 35]];
+  let split = tween(0, dur), drawn = NaN;
   function draw(now) {
-    const t = Math.round(tval(wave, now) * 1000) / 1000;
+    const t = Math.round(tval(split, now) * 1000) / 1000;
     if (t === drawn) return;
     drawn = t;
-    // the bar rides the stem where it crosses it, so the f never comes apart
-    setPlate(bar, f[0][1].map(([u, v]) => [u + bend(BEND_BAR, t), v]), T, T + 4);
-    setPlate(stem, f[1][1].map(([u, v]) => [u + bend(v, t), v]), T, T + 4);
+    const e = Math.sin(Math.PI * t);
+    for (const [el, pts, [mu, mv], [du, dv], turn] of PIECES) {
+      const c = Math.cos(rad(turn * e)), s = Math.sin(rad(turn * e));
+      setPlate(el, pts.map(([u, v]) => [mu + du * e + (u - mu) * c - (v - mv) * s, mv + dv * e + (u - mu) * s + (v - mv) * c]), T, T + 4);
+    }
   }
   draw(performance.now());
 
-  const B = register(stage, (_dt, now) => { draw(now); return !tdone(wave, now); });
+  const B = register(stage, (_dt, now) => { draw(now); return !tdone(split, now); });
   bag.add(B.unregister);
 
-  // the hit test: a fixed disc round the bubble; entering it starts one slither, unless one is still playing
+  // the hit test: a fixed disc round the bubble; entering it starts one split, unless one is still playing
   let on = false;
   function hover(p) {
     const inside = !!p && Math.hypot((p[0] - CX) / K, (CY - p[1]) / K) < 1.05, now = performance.now();
     if (inside === on) return;
     on = inside;
-    if (inside && tdone(wave, now)) { wave = tween(0, dur); tset(wave, 1, now, 0); }
-    read.textContent = inside ? "slither" : "rest";
+    if (inside && tdone(split, now)) { split = tween(0, dur); tset(split, 1, now, 0); }
+    read.textContent = inside ? "split" : "rest";
     B.wake();
   }
 
   bag.add(pointer(stage, { move: hover, leave: () => hover(null) }));
   bag.add(() => svg.replaceChildren());
 
-  return { set: (v) => { dur = clamp(v, 600, 2400); }, destroy: bag.dispose };
+  return { set: (v) => { dur = clamp(v, 300, 1600); }, destroy: bag.dispose };
 }
 
 hairline({
   name: "fedora",
-  means: "Fedora's bubble and its f: hover it and the f slithers like a snake and settles back into place.",
+  means: "Fedora's bubble and its f: hover it and the f's bar and stem fly apart, then wind back into place.",
   rules: [1, 8, 10],
-  range: [900, 1400, 2000],
+  range: [500, 800, 1200],
   mount,
 });
 </script>

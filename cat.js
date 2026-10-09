@@ -15,8 +15,9 @@ const {
 const S = 3.7, F0 = [Math.SQRT1_2, Math.SQRT1_2], R0 = [Math.SQRT1_2, -Math.SQRT1_2];
 const BC = [-2, -2], HZ = 25, REST = [-16, -16];
 const DIRS = ["e", "ne", "n", "nw", "w", "sw", "s", "se"];
-// marching squares: the crossing edges joined in each cell case (5 and 10, the saddles, are decided by the cell's middle)
-const SEG = { 1: "LB", 14: "LB", 2: "BR", 13: "BR", 3: "LR", 12: "LR", 4: "TR", 11: "TR", 6: "TB", 9: "TB", 7: "LT", 8: "LT" };
+// marching squares: the crossing edges joined in each cell case, as pairs of edges T 0, R 1, B 2, L 3 (5 and 10, the saddles, are decided by the cell's middle)
+const SEG = { 1: [3, 2], 14: [3, 2], 2: [2, 1], 13: [2, 1], 3: [3, 1], 12: [3, 1], 4: [0, 1], 11: [0, 1], 6: [0, 2], 9: [0, 2], 7: [3, 0], 8: [3, 0] };
+const LTBR = [3, 0, 2, 1], TRLB = [0, 1, 3, 2];
 const SPH = [];
 for (let i = 1; i < 9; i++) for (let j = 0; j < 18; j++) { const t = (i / 9) * Math.PI, f = (j / 18) * 2 * Math.PI; SPH.push([Math.sin(t) * Math.cos(f), Math.sin(t) * Math.sin(f), Math.cos(t)]); }
 SPH.push([0, 0, 1], [0, 0, -1]);
@@ -31,6 +32,7 @@ function frame3(o, yaw, pitch) {
 
 /** One soft outline round convex shapes on screen: the zero contour of the smooth minimum of their distances (fillet k), by marching squares. */
 function soft(shapes, k = 2.5, step = 0.7) {
+  step *= 2; // twice the callers' spacing: the contour is interpolated, so it looks the same for a quarter of the work
   const parts = shapes.map((pts) => {
     const h = hull(pts), n = h.length, cx = h.reduce((a, p) => a + p[0], 0) / n, cy = h.reduce((a, p) => a + p[1], 0) / n, pl = [];
     for (let i = 0; i < n; i++) {
@@ -48,44 +50,48 @@ function soft(shapes, k = 2.5, step = 0.7) {
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const x = X0 + i * step, y = Y0 + j * step; let v = 1e9;
     for (const p of parts) {
-      const bx = Math.max(p.x0 - x, x - p.x1, 0), by = Math.max(p.y0 - y, y - p.y1, 0), bd = Math.hypot(bx, by);
+      const bx = Math.max(p.x0 - x, x - p.x1, 0), by = Math.max(p.y0 - y, y - p.y1, 0), bd = Math.sqrt(bx * bx + by * by), pl = p.pl;
       let d = bd;
-      if (bd < k + 1) { d = -1e9; for (let q = 0; q < p.pl.length; q += 3) d = Math.max(d, p.pl[q] * x + p.pl[q + 1] * y - p.pl[q + 2]); }
+      if (bd < k + 1) { d = -1e9; for (let q = 0; q < pl.length; q += 3) { const e = pl[q] * x + pl[q + 1] * y - pl[q + 2]; if (e > d) d = e; } }
       const hh = Math.max(k - Math.abs(v - d), 0) / k; v = Math.min(v, d) - hh * hh * k * 0.25;
     }
     f[j * W + i] = v;
   }
-  // marching squares: each crossing is keyed by its grid edge; segments join crossings into loops
-  const at = new Map(), nb = new Map();
-  const cross = (i, j, dir) => {
-    const key = (j * W + i) * 2 + dir;
-    if (!at.has(key)) {
-      const a = f[j * W + i], b = dir ? f[(j + 1) * W + i] : f[j * W + i + 1], t = a / (a - b);
-      at.set(key, dir ? [X0 + i * step, Y0 + (j + t) * step] : [X0 + (i + t) * step, Y0 + j * step]);
-    }
+  // marching squares: each crossing has a slot for its grid edge (node * 2 + down) and joins exactly two others
+  const N = W * H * 2, px = new Float32Array(N), py = new Float32Array(N), n0 = new Int32Array(N).fill(-1), n1 = new Int32Array(N).fill(-1);
+  const at = (n, dn) => {
+    const key = n * 2 + dn;
+    if (n0[key] < 0) { const a = f[n], t = a / (a - f[dn ? n + W : n + 1]), i = n % W; px[key] = X0 + (i + (dn ? 0 : t)) * step; py[key] = Y0 + ((n - i) / W + (dn ? t : 0)) * step; }
     return key;
   };
-  const link = (a, b) => { (nb.get(a) || nb.set(a, []).get(a)).push(b); (nb.get(b) || nb.set(b, []).get(b)).push(a); };
+  const edge = (n, e) => e === 0 ? at(n, 0) : e === 1 ? at(n + 1, 1) : e === 2 ? at(n + W, 0) : at(n, 1);
+  const link = (a, b) => { if (n0[a] < 0) n0[a] = b; else n1[a] = b; if (n0[b] < 0) n0[b] = a; else n1[b] = a; };
   for (let j = 0; j < H - 1; j++) for (let i = 0; i < W - 1; i++) {
-    const a = f[j * W + i] < 0, b = f[j * W + i + 1] < 0, c = f[(j + 1) * W + i + 1] < 0, d = f[(j + 1) * W + i] < 0;
-    const cs = (a ? 8 : 0) | (b ? 4 : 0) | (c ? 2 : 0) | (d ? 1 : 0);
+    const n = j * W + i, a = f[n], b = f[n + 1], c = f[n + W + 1], dd = f[n + W];
+    const cs = (a < 0 ? 8 : 0) | (b < 0 ? 4 : 0) | (c < 0 ? 2 : 0) | (dd < 0 ? 1 : 0);
     if (cs === 0 || cs === 15) continue;
-    const E = { T: () => cross(i, j, 0), R: () => cross(i + 1, j, 1), B: () => cross(i, j + 1, 0), L: () => cross(i, j, 1) };
-    const mid = (f[j * W + i] + f[j * W + i + 1] + f[(j + 1) * W + i + 1] + f[(j + 1) * W + i]) < 0;
-    const segs = cs === 5 ? (mid ? "LTBR" : "TRLB") : cs === 10 ? (mid ? "TRLB" : "LTBR") : SEG[cs];
-    for (let q = 0; q < segs.length; q += 2) link(E[segs[q]](), E[segs[q + 1]]());
+    const mid = a + b + c + dd < 0, sg = cs === 5 ? (mid ? LTBR : TRLB) : cs === 10 ? (mid ? TRLB : LTBR) : SEG[cs];
+    for (let q = 0; q < sg.length; q += 2) link(edge(n, sg[q]), edge(n, sg[q + 1]));
   }
-  const seen = new Set();
+  // walk each loop, round its corners once (Chaikin) and write it at a tenth of a unit
+  const seen = new Uint8Array(N), lx = [], ly = [];
   let d = "";
-  for (const start of nb.keys()) {
-    if (seen.has(start)) continue;
-    const loop = []; let cur = start, prev = -1;
-    while (cur !== undefined && !seen.has(cur)) {
-      seen.add(cur); loop.push(at.get(cur));
-      const nx = nb.get(cur).find((x) => x !== prev && !seen.has(x)); prev = cur; cur = nx;
+  for (let start = 0; start < N; start++) {
+    if (n0[start] < 0 || seen[start]) continue;
+    lx.length = ly.length = 0;
+    let cur = start, prev = -1;
+    while (cur >= 0 && !seen[cur]) {
+      seen[cur] = 1; lx.push(px[cur]); ly.push(py[cur]);
+      const a = n0[cur], b = n1[cur], nx = a >= 0 && a !== prev && !seen[a] ? a : b >= 0 && b !== prev && !seen[b] ? b : -1;
+      prev = cur; cur = nx;
     }
-    let L = loop; for (let r = 0; r < 2; r++) L = L.flatMap((p, i) => { const q = L[(i + 1) % L.length]; return [[0.75 * p[0] + 0.25 * q[0], 0.75 * p[1] + 0.25 * q[1]], [0.25 * p[0] + 0.75 * q[0], 0.25 * p[1] + 0.75 * q[1]]]; });
-    if (loop.length > 6) d += poly(L);
+    const m = lx.length;
+    if (m <= 6) continue;
+    for (let i = 0; i < m; i++) {
+      const j = (i + 1) % m;
+      d += (i ? "L" : "M") + (0.75 * lx[i] + 0.25 * lx[j]).toFixed(1) + " " + (0.75 * ly[i] + 0.25 * ly[j]).toFixed(1) + "L" + (0.25 * lx[i] + 0.75 * lx[j]).toFixed(1) + " " + (0.25 * ly[i] + 0.75 * ly[j]).toFixed(1);
+    }
+    d += "Z";
   }
   return d;
 }
