@@ -54,13 +54,14 @@ function mount({ stage, svg, read }, value) {
   stem.face.classList.add("hi"); bar.face.classList.add("hi");
   setPlate(bub, bubble(), 0, T);
   const f = [[bar, ribbon(BAR, 0.075)], [stem, ribbon(STEM, 0.075)]];
-  // the loop: the bar holds still while the stem leaves the f, runs once round an infinity sign like a loader, and curls back in
+  // the loop: the bar holds still while the stem runs once round an infinity sign stood at the stem's own slant, like a loader, and curls back in
   // where each point of the stem sits along it, 0 at the hook to 1 at the tail
   const along = [0];
   for (let i = 1; i < STEM.length; i++) along.push(along[i - 1] + Math.hypot(STEM[i][0] - STEM[i - 1][0], STEM[i][1] - STEM[i - 1][1]));
   const len = along[STEM.length - 1];
-  /** The infinity sign (Bernoulli's lemniscate) at angle a, about the f's middle. */
-  const INF = (a) => { const q = 1 + Math.sin(a) ** 2; return [0.07 + (0.72 * Math.cos(a)) / q, (0.72 * Math.sin(a) * Math.cos(a)) / q]; };
+  /** The infinity sign (Bernoulli's lemniscate) at angle a, about the stem's middle, its long axis along the stem's straight run: a = 0 is its top tip. */
+  const AX = Math.atan2(0.22 + 0.44, 0.06 + 0.06), ca = Math.cos(AX), sa = Math.sin(AX);
+  const INF = (a) => { const q = 1 + Math.sin(a) ** 2, x = (0.72 * Math.cos(a)) / q, y = (0.72 * Math.sin(a) * Math.cos(a)) / q; return [x * ca - y * sa, -0.08 + x * sa + y * ca]; };
   // the stem keeps its own length on the sign: the lemniscate is 5.244 times its half-width round
   const SPAN = (2 * Math.PI * len) / (5.244 * 0.72);
   setPlate(bar, f[0][1], T, T + 4);
@@ -74,7 +75,7 @@ function mount({ stage, svg, read }, value) {
     drawn = t;
     // how far the stem has left the f, and where its head is on the sign: it laps the sign in the first four fifths,
     // back on the stretch it left from, then eases into the f the way it came out
-    const w = Math.min(1, t * 5, (1 - t) * 5), on = w * w * (3 - 2 * w), head = Math.PI / 4 - 2 * Math.PI * Math.min(1, t / 0.8);
+    const w = Math.min(1, t * 5, (1 - t) * 5), on = w * w * (3 - 2 * w), head = -2 * Math.PI * Math.min(1, t / 0.8);
     let c = STEM.map(([u, v], i) => { const [x, y] = INF(head + (SPAN * along[i]) / len); return [lerp(u, x, on), lerp(v, y, on)]; });
     // half way between the f and the sign the blended line can curl tighter than the stroke is wide: ease its bends there, only there
     const ease = on * (1 - on) * 4;

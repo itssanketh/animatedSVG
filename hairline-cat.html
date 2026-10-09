@@ -719,21 +719,23 @@ var HL = (() => {
 </script>
 <script type="module" id="hl-figure">
 /**
- * Cat: a cat on a soft cushion, tail curled round its paws, napping: head down,
- * ears folded out, eyes shut. Bring the pointer near and it wakes on the 700ms
- * curve, ears up, eyes open, tail tip lifting, and its head follows the pointer
- * on two springs, left and right and up and down. The read-out names where it
- * watches; the slider is how far the head can go. Each mass (body; head with
- * cheeks, muzzle and ears) is one soft outline: its rounded shapes merged where
- * they meet. The hit test is the head's fixed centre on screen.
+ * Cat: a cat sitting up, tail curled round its front, dozing: head down, ears
+ * folded out, eyes shut. Bring the pointer near and it wakes on the 700ms
+ * curve, ears up, half-lidded eyes open and glance toward the pointer, tail tip
+ * lifting, and its head follows the pointer on two springs. The blaze, the leg
+ * lines and the patches lie on the round surfaces, so they turn with them. The
+ * read-out names where it watches; the slider is how far the head can go. The
+ * hit test is the head's fixed centre on screen.
  */
 const {
-  Cam, clamp, fit, hull, lerp, mk, open, place, pointer, poly, proj, rad, register,
-  spring, stepS, tdone, tset, tval, tween, disposer,
+  Cam, clamp, fit, lerp, mk, open, place, pointer, poly, proj, rad, register,
+  spring, stepS, tdone, tset, tval, tween, disposer, hull,
 } = HL;
 
-const S = 3.7, F0 = [Math.SQRT1_2, Math.SQRT1_2], R0 = [Math.SQRT1_2, -Math.SQRT1_2];
-const BC = [-2, -2], HZ = 25, REST = [-16, -16];
+const S = 6.2, F0 = [Math.SQRT1_2, Math.SQRT1_2], R0 = [Math.SQRT1_2, -Math.SQRT1_2];
+const BC = [-1, -1], HZ = 23, REST = [-16, -16];
+// the body, sitting: a wide round seat, a narrower chest, the neck ([centre], [radii])
+const BODY = [[[0, 0, 6.8], [9, 8, 6.8]], [[0, 0.8, 13.4], [7, 6, 8]], [[0, 1.4, 20], [5.2, 4.8, 4.4]]];
 const DIRS = ["e", "ne", "n", "nw", "w", "sw", "s", "se"];
 // marching squares: the crossing edges joined in each cell case, as pairs of edges T 0, R 1, B 2, L 3 (5 and 10, the saddles, are decided by the cell's middle)
 const SEG = { 1: [3, 2], 14: [3, 2], 2: [2, 1], 13: [2, 1], 3: [3, 1], 12: [3, 1], 4: [0, 1], 11: [0, 1], 6: [0, 2], 9: [0, 2], 7: [3, 0], 8: [3, 0] };
@@ -820,45 +822,35 @@ function mount({ stage, svg, read }, value) {
   const bag = disposer(); let reach = value;
 
   const C = Cam(45, 0.5, S);
-  fit(C, [[-25, -25, -4], [25, 25, -4], [25, -25, -4], [-25, 25, -4], [0, 0, HZ + 19]], 200, 168);
+  fit(C, [[-13, -13, 0], [13, 13, 0], [13, -13, 0], [-13, 13, 0], [0, 0, HZ + 19]], 200, 166);
   const P = proj(C);
   const body = frame3([BC[0], BC[1], 0], 0, 0), B3 = (u, v, z) => P(...body(u, v, z));
   /** An ellipsoid's surface on screen, in a frame. */
   const ell = (Fr, c, r) => SPH.map(([a, b, h]) => P(...Fr(c[0] + a * r[0], c[1] + b * r[1], c[2] + h * r[2])));
+  /** A tube through [centre, radius] stations, as capsule segments, each the hull of its two end balls. */
+  const tubeOf = (st, Fr = body) => st.slice(1).map(([c, r], i) => ell(Fr, st[i][0], [st[i][1], st[i][1], st[i][1]]).concat(ell(Fr, c, [r, r, r])));
+  /** A point on the front of the body, at (u, z): the nearest of its rounds. */
+  const onBody = (u, z) => B3(u, 0.3 + Math.max(...BODY.map(([c, r]) => c[1] + r[1] * Math.sqrt(Math.max(0, 1 - ((u - c[0]) / r[0]) ** 2 - ((z - c[2]) / r[2]) ** 2)))), z);
   const HC = [BC[0] + 4.2 * F0[0], BC[1] + 4.2 * F0[1]];
 
   const g = mk("g", {}, svg);
-  // the cushion: a soft flattened round, its seam a dim line round the near side
-  const ring = (r, z) => Array.from({ length: 64 }, (_, k) => P(r * Math.cos((k / 64) * 2 * Math.PI), r * Math.sin((k / 64) * 2 * Math.PI), z));
-  mk("path", { d: poly(hull([...ring(25, -2), ...ring(23, 0.4), ...ring(23, -4.4)])), class: "sil" }, g);
-  mk("path", { d: open(Array.from({ length: 25 }, (_, k) => { const t = rad(-45 + k * 7.5); return P(24.4 * Math.cos(t), 24.4 * Math.sin(t), -2); })), class: "nf lo" }, g);
+  // the body as one soft outline, then what lies on it: two patches, and the front legs as three lines
+  mk("path", { d: soft(BODY.map(([c, r]) => ell(body, c, r)), 8, 0.3), class: "sil" }, g);
+  mk("path", { d: [[[6.5, 15.8], [5.2, 14.4], [4.8, 12.4], [5.2, 10.6], [6.6, 9.6]], [[-8.6, 9.4], [-7, 8.8], [-6.2, 7], [-6.6, 5], [-8, 3.6]]].map((c) => open(c.map(([u, z]) => onBody(u, z)))).join(""), class: "nf lo" }, g);
+  mk("path", { d: [[-3.6, -2], [0, 0], [3.6, 2]].map(([a, b]) => open(Array.from({ length: 6 }, (_, k) => onBody(lerp(a, b, k / 5), lerp(12.5, 1.5, k / 5))))).join(""), class: "nf lo" }, g);
 
-  // the tail: a chain of balls on the cushion, merged into one tube, curled from behind the haunch round the paws
+  // the tail: a chain of balls on the floor, merged into one thick tube: out of the right haunch, round the front, its tip free on the left
   const tail = mk("path", { class: "sil" }, g);
-  const tailAt = (wk) => tubeOf(Array.from({ length: 31 }, (_, k) => {
-    const t = k / 30, a = rad(lerp(-70, 150, t)), ru = lerp(17, 13.5, t * t), rv = 17.5;
-    const lift = t > 0.78 ? wk * 8 * ((t - 0.78) / 0.22) ** 2 : 0, r = lerp(3, 2.2, t);
-    return [[ru * Math.cos(a), rv * Math.sin(a), 1.4 + r + lift], r];
+  const tailAt = (wk) => tubeOf(Array.from({ length: 25 }, (_, k) => {
+    const t = k / 24, a = rad(lerp(25, 176, t)), R = lerp(8.6, 12.2, t * t), r = lerp(2.4, 3, t);
+    return [[R * Math.cos(a), R * Math.sin(a), r + 0.2 + (t > 0.8 ? wk * 6 * ((t - 0.8) / 0.2) ** 2 : 0)], r];
   }));
 
-  /** A tube through [centre, radius] stations, as capsule segments, each the hull of its two end balls. */
-  const tubeOf = (st, Fr = body) => st.slice(1).map(([c, r], i) => ell(Fr, st[i][0], [st[i][1], st[i][1], st[i][1]]).concat(ell(Fr, c, [r, r, r])));
-  // the body: haunches low and wide, the chest rising narrow to the neck, all one outline
-  mk("path", { d: soft([
-    ell(body, [-5.8, -4.2, 5.4], [5.2, 7.6, 5.4]), ell(body, [5.8, -4.2, 5.4], [5.2, 7.6, 5.4]), ell(body, [0, -2, 5.4], [6, 7, 5.4]),
-    ell(body, [0, 2, 12], [5, 4.8, 10]), ell(body, [0, 2.8, 19], [4.4, 4.4, 5]), ell(body, [0, 3.2, 24], [3.6, 3.6, 3.6]),
-  ], 10), class: "sil" }, g);
-  // front legs and paws, one outline each side, with two toe lines on each paw
-  for (const s of [-1, 1]) {
-    mk("path", { d: soft([...tubeOf([[[s * 2.8, 5.6, 8.5], 2.1], [[s * 2.9, 6.8, 3], 1.8]]), ell(body, [s * 3.1, 8.2, 1.4], [2.4, 3, 1.5])], 1.4), class: "sil" }, g);
-    mk("path", { d: [-0.8, 0.8].map((o) => open([B3(s * 3.1 + o, 10.6, 0.5), B3(s * 3.1 + o, 10.9, 1.9)])).join(""), class: "nf lo" }, g);
-  }
-
-  // the head: skull, cheeks, muzzle and both ears in one outline, in the head's own turned and tipped frame
-  const head = mk("path", { class: "sil" }, g), inner = mk("path", { class: "nf lo" }, g);
-  const lids = mk("path", { class: "nf" }, g), mouth = mk("path", { class: "nf lo" }, g), whisk = mk("path", { class: "nf lo" }, g);
+  // the head: a wide skull, full cheeks and both ears in one outline, in the head's own turned and tipped frame
+  const head = mk("path", { class: "sil" }, g), inner = mk("path", { class: "nf lo" }, g), blaze = mk("path", { class: "nf lo" }, g);
+  const rims = mk("path", { class: "nf lo" }, g), lids = mk("path", { class: "nf" }, g), whisk = mk("path", { class: "nf lo" }, g);
   const eyes = [0, 1].map(() => mk("circle", { r: 1.6, class: "dot" }, g));
-  const nose = mk("circle", { r: 1.2, class: "dot" }, g);
+  const nose = mk("path", { class: "dot" }, g);
 
   const yaw = spring(REST[0], { eps: 0.05 }), pitch = spring(REST[1], { eps: 0.05 }), wake = tween(0);
   let drawn = "", tailW = -1;
@@ -867,28 +859,27 @@ function mount({ stage, svg, read }, value) {
     if (key === drawn) return;
     drawn = key;
     const tw = Math.round(wk * 30) / 30;
-    if (tw !== tailW) { tailW = tw; tail.setAttribute("d", soft(tailAt(tw), 3)); }
+    if (tw !== tailW) { tailW = tw; tail.setAttribute("d", soft(tailAt(tw), 3, 0.4)); }
 
-    const H = frame3([HC[0], HC[1], HZ - (1 - wk) * 1.2], rad(yaw.x), rad(pitch.x)), F = (u, v, h) => P(...H(u, v, h));
+    const H = frame3([HC[0], HC[1], HZ - (1 - wk) * 1.6], rad(yaw.x), rad(pitch.x)), F = (u, v, h) => P(...H(u, v, h));
     const ear = (s) => {
-      const tip = [s * lerp(12.5, 7.2, wk), lerp(-1.6, -0.6, wk), lerp(10.5, 17.6, wk)];
-      return { tip, pts: [[s * 2.4, -0.6, 11], [s * 8.8, -0.6, 7.6], [s * 5.6, -2.8, 10], [s * 5.6, 1.4, 9.6], tip].map((p) => F(...p)) };
+      const tip = [s * lerp(13.4, 8, wk), lerp(-1.6, -0.6, wk), lerp(10.8, 16.2, wk)];
+      return { tip, pts: [[s * 2.6, -0.6, 11.2], [s * 9.6, -0.6, 7.8], [s * 6.2, -2.8, 10.4], [s * 6.2, 1.4, 10], tip].map((p) => F(...p)) };
     };
     const el = ear(-1), er = ear(1);
-    head.setAttribute("d", soft([
-      ell(H, [0, 0, 6.6], [8.6, 7.2, 6.8]), ell(H, [-4.6, 2.4, 3.6], [4.4, 4.6, 3.6]), ell(H, [4.6, 2.4, 3.6], [4.4, 4.6, 3.6]),
-      ell(H, [0, 5.8, 3.4], [3.4, 2.4, 2.4]), el.pts, er.pts,
-    ], 4.5, 0.6));
-    inner.setAttribute("d", [[-1, el], [1, er]].map(([s, e]) => open([F(s * 3.6, 0.2, 10.8), F(e.tip[0] * 0.94, e.tip[1] + 0.6, e.tip[2] - 2.2), F(s * 7.8, 0.2, 8.4)])).join(""));
+    head.setAttribute("d", soft([ell(H, [0, 0, 6.6], [9.4, 7.4, 6.8]), ell(H, [-5.2, 2.2, 3.8], [4.8, 4.6, 3.6]), ell(H, [5.2, 2.2, 3.8], [4.8, 4.6, 3.6]), el.pts, er.pts], 4.5, 0.4));
+    inner.setAttribute("d", [[-1, el], [1, er]].map(([s, e]) => open([F(s * 3.8, 0.2, 11), F(e.tip[0] * 0.92, e.tip[1] + 0.6, e.tip[2] - 2.4), F(s * 8.4, 0.2, 8.6)])).join(""));
 
-    // the face sits on the front of the skull and cheeks
-    const front = (u, h) => F(u, 7.2 * Math.sqrt(Math.max(0.05, 1 - (u / 8.6) ** 2 - ((h - 6.6) / 6.8) ** 2)) + 0.3, h);
-    const awake = wk > 0.5;
-    lids.setAttribute("d", awake ? "" : [-1, 1].map((s) => open([-1.8, -0.9, 0, 0.9, 1.8].map((d) => front(s * 3.8 + d, 7.6 - 0.8 * (1 - (d / 1.8) ** 2))))).join(""));
-    eyes.forEach((e, i) => { e.setAttribute("display", awake ? "inline" : "none"); place(e, front((i ? 1 : -1) * 3.8, 7.6)); });
-    place(nose, F(0, 8.1, 4.6));
-    mouth.setAttribute("d", open([F(-1.8, 7.6, 2.6), F(-0.8, 8, 2.2), F(0, 8.2, 3.2), F(0.8, 8, 2.2), F(1.8, 7.6, 2.6)]));
-    whisk.setAttribute("d", [-1, 1].flatMap((s) => [open([F(s * 3, 7.4, 3.6), F(s * 13, 6, 5)]), open([F(s * 3, 7.4, 3), F(s * 12.5, 6, 1.6)])]).join(""));
+    // the face lies on the front of the skull: the blaze down the forehead, the eyes, the nose, the whiskers
+    const front = (u, h) => F(u, 7.4 * Math.sqrt(Math.max(0.05, 1 - (u / 9.4) ** 2 - ((h - 6.6) / 6.8) ** 2)) + 0.3, h);
+    blaze.setAttribute("d", [-1, 1].map((s) => open(Array.from({ length: 7 }, (_, k) => front(s * lerp(0.8, 2.6, (k / 6) ** 2), lerp(13.1, 8.8, k / 6))))).join(""));
+    const awake = wk > 0.5, look = clamp(yaw.x / 25, -1, 1);
+    rims.setAttribute("d", awake ? [-1, 1].map((s) => poly(Array.from({ length: 16 }, (_, k) => { const a = (k / 16) * 2 * Math.PI; return front(s * 4 + 2.4 * Math.cos(a), 7.25 + 1.3 * Math.sin(a)); }))).join("") : "");
+    // awake, a heavy lid across each eye's top: half-lidded; asleep, a closed curve
+    lids.setAttribute("d", [-1, 1].map((s) => open([-2, -1, 0, 1, 2].map((d) => awake ? front(s * 4 + d * 1.15, 7.95 - 0.14 * Math.abs(d)) : front(s * 4 + d * 0.9, 7.6 - 0.8 * (1 - (d / 2) ** 2))))).join(""));
+    eyes.forEach((e, i) => { e.setAttribute("display", awake ? "inline" : "none"); place(e, front((i ? 1 : -1) * 4 + look * 1.1, 7.05)); });
+    nose.setAttribute("d", poly([front(-0.9, 6.2), front(0.9, 6.2), front(0, 5.3)]));
+    whisk.setAttribute("d", [-1, 1].flatMap((s) => [open([F(s * 4.2, 6.6, 4.6), F(s * 14, 5.4, 5.8)]), open([F(s * 4.2, 6.6, 3.8), F(s * 13.5, 5.4, 2.6)])]).join(""));
   }
   draw(performance.now());
 
@@ -911,15 +902,12 @@ function mount({ stage, svg, read }, value) {
   bag.add(pointer(stage, { move: watch, leave: () => watch(null) }));
   bag.add(() => svg.replaceChildren());
 
-  return {
-    set: (v) => { reach = v; },
-    destroy: bag.dispose,
-  };
+  return { set: (v) => { reach = v; }, destroy: bag.dispose };
 }
 
 hairline({
   name: "cat",
-  means: "A cat napping on a cushion, tail round its paws: bring the pointer near and it wakes, ears up, and turns to watch.",
+  means: "A cat sitting with its tail round its front, dozing: bring the pointer near and it wakes, ears up, and turns to watch.",
   rules: [1, 5, 8, 9],
   range: [15, 28, 40],
   mount,
