@@ -736,9 +736,8 @@ const BODY = [[[0, -1, 6], [8, 7.6, 6]], [[-6.8, -1.4, 4.8], [3.8, 6.4, 4.8]], [
 const DIRS = ["e", "ne", "n", "nw", "w", "sw", "s", "se"];
 const SEG = { 1: [3, 2], 14: [3, 2], 2: [2, 1], 13: [2, 1], 3: [3, 1], 12: [3, 1], 4: [0, 1], 11: [0, 1], 6: [0, 2], 9: [0, 2], 7: [3, 0], 8: [3, 0] };
 const LTBR = [3, 0, 2, 1], TRLB = [0, 1, 3, 2];
-const SPH = [];
-for (let i = 1; i < 9; i++) for (let j = 0; j < 18; j++) { const t = (i / 9) * Math.PI, f = (j / 18) * 2 * Math.PI; SPH.push([Math.sin(t) * Math.cos(f), Math.sin(t) * Math.sin(f), Math.cos(t)]); }
-SPH.push([0, 0, 1], [0, 0, -1]);
+const sph = (n, m) => { const o = [[0, 0, 1], [0, 0, -1]]; for (let i = 1; i < n; i++) for (let j = 0; j < m; j++) { const t = (i / n) * Math.PI, f = (j / m) * 2 * Math.PI; o.push([Math.sin(t) * Math.cos(f), Math.sin(t) * Math.sin(f), Math.cos(t)]); } return o; };
+const SPH = sph(9, 18), SPH2 = sph(16, 40); // the head's rounds are sampled finer: its outline is their hull, smooth while it turns
 
 /** A frame about o (x, y, z), turned by yaw from facing the eye and tipped up by pitch. */
 function frame3(o, yaw, pitch) {
@@ -822,7 +821,7 @@ function mount({ stage, svg, read }, value) {
   fit(C, [[-13, -13, 0], [13, 13, 0], [13, -13, 0], [-13, 13, 0], [0, 0, HZ + 19]], 200, 166);
   const P = proj(C);
   const body = frame3([BC[0], BC[1], 0], 0, 0), B3 = (u, v, z) => P(...body(u, v, z));
-  const ell = (Fr, c, r) => SPH.map(([a, b, h]) => P(...Fr(c[0] + a * r[0], c[1] + b * r[1], c[2] + h * r[2])));
+  const ell = (Fr, c, r, U = SPH) => U.map(([a, b, h]) => P(...Fr(c[0] + a * r[0], c[1] + b * r[1], c[2] + h * r[2])));
   /** A tube through [centre, radius] stations, as capsule segments, each the hull of its two end balls. */
   const tubeOf = (st, Fr = body) => st.slice(1).map(([c, r], i) => ell(Fr, st[i][0], [st[i][1], st[i][1], st[i][1]]).concat(ell(Fr, c, [r, r, r])));
   /** A point on the front of the body, at (u, z): the nearest of its rounds. */
@@ -830,9 +829,9 @@ function mount({ stage, svg, read }, value) {
   const HC = [BC[0] + 4.4 * F0[0], BC[1] + 4.4 * F0[1]];
 
   const g = mk("g", {}, svg);
-  // the tail, raised from behind the right haunch; painted first, so only what clears the body shows
+  // the tail, raised from behind the right haunch, wagging side to side; painted first, so only what clears the body shows
   const tail = mk("path", { class: "sil" }, g);
-  const drawTail = (wag) => tail.setAttribute("d", soft(tubeOf(Array.from({ length: 9 }, (_, k) => { const t = k / 8; return [[7 + t * 4.6 + wag * t * t * 2.4, -7 - t * 2.4 + wag * t * t * 1.6, 6 + t * 9 - t * t * 1.4], lerp(2.6, 1.6, t)]; })), 3, 0.5));
+  const drawTail = (wag) => tail.setAttribute("d", soft(tubeOf(Array.from({ length: 9 }, (_, k) => { const t = k / 8; return [[8.6 + t * 5.2 + wag * t * t * 0.7, -7 - t * 2.4, 6 + t * 10 - t * t * 1.4], lerp(2.6, 1.6, t)]; })), 3, 0.5));
 
   // the body and haunches as one outline; the line down the chest; the back paws out at the sides
   mk("path", { d: soft(BODY.map(([c, r]) => ell(body, c, r)), 6, 0.3), class: "sil" }, g);
@@ -859,13 +858,13 @@ function mount({ stage, svg, read }, value) {
     drawTail(wag);
     const H = frame3([HC[0], HC[1], HZ - (1 - wk) * 1.4], rad(yaw.x), rad(pitch.x)), F = (u, v, h) => P(...H(u, v, h));
     const M = [[0, 6.4, 3.6], [4.4, 3.4, 2.8]];
-    head.setAttribute("d", soft([ell(H, [0, 0, 7], [9.2, 7.6, 7]), ell(H, [-4.6, 3.2, 4], [4.2, 4, 3.2]), ell(H, [4.6, 3.2, 4], [4.2, 4, 3.2]), ell(H, ...M)], 4.5, 0.4));
+    head.setAttribute("d", poly(hull([[[0, 0, 7], [9.2, 7.6, 7]], [[-4.6, 3.2, 4], [4.2, 4, 3.2]], [[4.6, 3.2, 4], [4.2, 4, 3.2]], M].flatMap(([c, r]) => ell(H, c, r, SPH2)))));
     // an ear is a wide flap facing forward, hung from the top corner of the skull and widening to its tip; awake it swings out
     const sw = lerp(0.12, 0.55, wk);
-    const flap = (s) => soft([Array.from({ length: 24 }, (_, k) => {
-      const t = (k / 24) * 2 * Math.PI, along = 5.8 * (1 - Math.cos(t)), across = 3.6 * Math.sin(t) * (0.6 + along / 29);
+    const flap = (s) => poly(hull(Array.from({ length: 48 }, (_, k) => {
+      const t = (k / 48) * 2 * Math.PI, along = 5.8 * (1 - Math.cos(t)), across = 3.6 * Math.sin(t) * (0.6 + along / 29);
       return F(s * (6.8 + along * Math.sin(sw) + across * Math.cos(sw)), 1 + along * 0.12, 12.4 - along * Math.cos(sw) + across * Math.sin(sw));
-    })], 2, 0.4);
+    })));
     const nearS = H(1, 0, 0)[0] + H(1, 0, 0)[1] > H(-1, 0, 0)[0] + H(-1, 0, 0)[1] ? 1 : -1;
     earFront.setAttribute("d", flap(nearS)); earBack.setAttribute("d", flap(-nearS));
     // the face lies on the front of the skull and muzzle
@@ -874,7 +873,7 @@ function mount({ stage, svg, read }, value) {
     // the eyes: closed curves asleep; awake, they crease up into a smile
     lids.setAttribute("d", [-1, 1].map((s) => open([-1.8, -0.9, 0, 0.9, 1.8].map((d) => front(s * 3.9 + d, 8.4 + lerp(-0.7, 0.9, wk) * (1 - (d / 1.8) ** 2))))).join(""));
     // the muzzle: its own round, drawn dim inside the head's outline, the patch the nose and smile sit on
-    muzzle.setAttribute("d", soft([ell(H, ...M)], 1, 0.4));
+    muzzle.setAttribute("d", poly(hull(ell(H, ...M, SPH2))));
     place(nose, snout(0, 5.3));
     // the mouth: a line down from the nose, then a wide smile whose corners turn up
     mouth.setAttribute("d", open([snout(0, 4.7), snout(0, 3.3)]) + open(Array.from({ length: 9 }, (_, k) => { const u = -3 + k * 0.75; return snout(u, 3.1 + 0.13 * u * u); })));
