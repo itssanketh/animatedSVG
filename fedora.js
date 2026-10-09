@@ -1,15 +1,15 @@
 /**
  * Fedora: the speech bubble, round with one square corner, as a thick plate
  * facing you with nothing under it, its f raised from the face. Hover the
- * bubble and the f comes apart: its bar and its stem fly apart, turning, then
- * wind back and lock into the f again; once per visit, never on a loop. The
- * slider is how long the split takes, in ms. A tribute: the mark belongs to Red Hat and the Fedora
+ * bubble and the bar holds still while the stem leaves the f, runs once round
+ * an infinity sign like a loader, and curls back into place; once per visit.
+ * The slider is how long the run takes, in ms. A tribute: the mark belongs to Red Hat and the Fedora
  * Project.
  *
  * Bubble and f are extruded plates: back face, sides, front face. The hit test
  * is a fixed disc round the bubble's resting centre.
  */
-const { clamp, lerp, mk, poly, rad, register, tdone, tset, tval, tween, disposer, pointer } = HL;
+const { bezier, clamp, lerp, mk, poly, rad, register, tdone, tset, tween, disposer, pointer } = HL;
 
 const K = 108, CX = 200, CY = 160, T = 7;
 /** The screen point of (u, v) on the plate, d deep: the front leans down and left of the back. */
@@ -54,46 +54,59 @@ function mount({ stage, svg, read }, value) {
   stem.face.classList.add("hi"); bar.face.classList.add("hi");
   setPlate(bub, bubble(), 0, T);
   const f = [[bar, ribbon(BAR, 0.075)], [stem, ribbon(STEM, 0.075)]];
-  // the split: the bar and the stem fly apart, each turning about its own middle, then wind back and lock into the f
-  // each piece: its middle, how far it travels (u, v) and how far it turns, in degrees, at the height of the split
-  const PIECES = [[bar, f[0][1], [0.05, 0.04], [-0.42, 0.1], -50], [stem, f[1][1], [0.07, 0], [0.22, -0.08], 35]];
-  let split = tween(0, dur), drawn = NaN;
+  // the loop: the bar holds still while the stem leaves the f, runs once round an infinity sign like a loader, and curls back in
+  // where each point of the stem sits along it, 0 at the hook to 1 at the tail
+  const along = [0];
+  for (let i = 1; i < STEM.length; i++) along.push(along[i - 1] + Math.hypot(STEM[i][0] - STEM[i - 1][0], STEM[i][1] - STEM[i - 1][1]));
+  const len = along[STEM.length - 1];
+  /** The infinity sign (Bernoulli's lemniscate) at angle a, about the f's middle. */
+  const INF = (a) => { const q = 1 + Math.sin(a) ** 2; return [0.07 + (0.72 * Math.cos(a)) / q, (0.72 * Math.sin(a) * Math.cos(a)) / q]; };
+  // the stem keeps its own length on the sign: the lemniscate is 5.244 times its half-width round
+  const SPAN = (2 * Math.PI * len) / (5.244 * 0.72);
+  setPlate(bar, f[0][1], T, T + 4);
+
+  // the tween is the clock (it lands at once under reduced motion); the run itself eases in and out, at a loader's even pace
+  const pace = bezier(0.45, 0, 0.35, 1);
+  let loop = tween(0, dur), t0 = 0, drawn = NaN;
   function draw(now) {
-    const t = Math.round(tval(split, now) * 1000) / 1000;
+    const t = tdone(loop, now) ? 0 : Math.round(pace(clamp((now - t0) / dur, 0, 1)) * 1000) / 1000;
     if (t === drawn) return;
     drawn = t;
-    const e = Math.sin(Math.PI * t);
-    for (const [el, pts, [mu, mv], [du, dv], turn] of PIECES) {
-      const c = Math.cos(rad(turn * e)), s = Math.sin(rad(turn * e));
-      setPlate(el, pts.map(([u, v]) => [mu + du * e + (u - mu) * c - (v - mv) * s, mv + dv * e + (u - mu) * s + (v - mv) * c]), T, T + 4);
-    }
+    // how far the stem has left the f, and where its head is on the sign: it laps the sign in the first four fifths,
+    // back on the stretch it left from, then eases into the f the way it came out
+    const w = Math.min(1, t * 5, (1 - t) * 5), on = w * w * (3 - 2 * w), head = Math.PI / 4 - 2 * Math.PI * Math.min(1, t / 0.8);
+    let c = STEM.map(([u, v], i) => { const [x, y] = INF(head + (SPAN * along[i]) / len); return [lerp(u, x, on), lerp(v, y, on)]; });
+    // half way between the f and the sign the blended line can curl tighter than the stroke is wide: ease its bends there, only there
+    const ease = on * (1 - on) * 4;
+    for (let r = 0; r < 6 && ease > 0.01; r++) c = c.map((p, i) => i === 0 || i === c.length - 1 ? p : [p[0] + ease * 0.5 * ((c[i - 1][0] + c[i + 1][0]) / 2 - p[0]), p[1] + ease * 0.5 * ((c[i - 1][1] + c[i + 1][1]) / 2 - p[1])]);
+    setPlate(stem, ribbon(c, 0.075), T, T + 4);
   }
   draw(performance.now());
 
-  const B = register(stage, (_dt, now) => { draw(now); return !tdone(split, now); });
+  const B = register(stage, (_dt, now) => { draw(now); return !tdone(loop, now); });
   bag.add(B.unregister);
 
-  // the hit test: a fixed disc round the bubble; entering it starts one split, unless one is still playing
+  // the hit test: a fixed disc round the bubble; entering it starts one loop, unless one is still playing
   let on = false;
   function hover(p) {
     const inside = !!p && Math.hypot((p[0] - CX) / K, (CY - p[1]) / K) < 1.05, now = performance.now();
     if (inside === on) return;
     on = inside;
-    if (inside && tdone(split, now)) { split = tween(0, dur); tset(split, 1, now, 0); }
-    read.textContent = inside ? "split" : "rest";
+    if (inside && tdone(loop, now)) { loop = tween(0, dur); tset(loop, 1, now, 0); t0 = now; }
+    read.textContent = inside ? "loop" : "rest";
     B.wake();
   }
 
   bag.add(pointer(stage, { move: hover, leave: () => hover(null) }));
   bag.add(() => svg.replaceChildren());
 
-  return { set: (v) => { dur = clamp(v, 300, 1600); }, destroy: bag.dispose };
+  return { set: (v) => { dur = clamp(v, 800, 3200); }, destroy: bag.dispose };
 }
 
 hairline({
   name: "fedora",
-  means: "Fedora's bubble and its f: hover it and the f's bar and stem fly apart, then wind back into place.",
+  means: "Fedora's bubble and its f: hover it and the f's stem runs once round an infinity sign, then curls back into place.",
   rules: [1, 8, 10],
-  range: [500, 800, 1200],
+  range: [1200, 1800, 2600],
   mount,
 });

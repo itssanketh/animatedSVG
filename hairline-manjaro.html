@@ -46,6 +46,7 @@
   #means { margin: 14px 0 0; text-wrap: pretty; }
   #rules { margin: 6px 0 0; line-height: 1.6; }
   #error { margin: 12px 0 0; padding-left: 10px; border-left: 1px solid var(--ink); }
+  #stage { aspect-ratio: 5 / 4; } /* the engine's own box, set here too so the page doesn't jump when the figure mounts */
 </style>
 </head>
 <body>
@@ -62,8 +63,8 @@
     <span class="label">theme</span>
     <button id="theme" type="button" aria-label="Switch between the light and the dark theme"></button>
   </div>
-  <p id="means"></p>
-  <p id="rules" class="label"></p>
+  <p id="means">Manjaro's four bars: the bar under the pointer slides out toward you, the others less the farther they stand.</p>
+  <p id="rules" class="label">01 hit · 02 order · 08 clock · 10 quiet</p>
   <p id="error" role="alert" hidden></p>
 </main>
 <script id="hl-kernel">
