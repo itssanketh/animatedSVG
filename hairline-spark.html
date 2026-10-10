@@ -761,13 +761,13 @@ function mount({ stage, svg, read }, value) {
 
   // alive: 0 at rest, 1 while hovered; it eases in and out, and the clock runs only while it is above 0
   const alive = spring(0, { eps: 0.002 }), home = spring(0, { eps: 0.001 });
-  let clock = 0, rot = 0, on = false, lit = -1, last = performance.now();
+  let clock = 0, rot = 0, on = false, goal = null, lit = -1, last = performance.now();
   function draw(now) {
     const dt = Math.min(now - last, 50); last = now;
     let moving = stepS(alive, dt / 1000);
     if (alive.x > 0.001 && !reducedMotion()) { clock += dt; moving = true; }
     // turning while it thinks; let go, it winds on round to where it started
-    if (on) { rot += dt * SPIN * alive.x; home.x = rot; home.v = 0; } else { home.t = Math.ceil(rot / TAU) * TAU; if (stepS(home, dt / 1000)) moving = true; rot = home.x; }
+    if (on) { rot += dt * SPIN * alive.x; home.x = rot; home.v = 0; goal = null; } else { if (goal === null) goal = Math.ceil(rot / TAU - 1e-6) * TAU; home.t = goal; if (stepS(home, dt / 1000)) moving = true; rot = home.x; }
     // each ray draws in toward the middle and springs back out, the pull running round the ring
     const rays = RAYS.map((_, k) => ray(k, rot, 0, -DRAW * alive.x * (0.5 + 0.5 * Math.sin((clock / period) * TAU - (k / N) * TAU * 2))));
     const loop = rays.flat(), f = loop.map(([u, v]) => S(u, v, T)), b = loop.map(([u, v]) => S(u, v, 0)), sides = [];
