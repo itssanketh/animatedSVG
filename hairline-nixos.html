@@ -719,95 +719,95 @@ var HL = (() => {
 </script>
 <script type="module" id="hl-figure">
 /**
- * NixOS: the snowflake of six lambdas as thick plates, facing you, with nothing
- * under them. Hover it and the lambdas drift apart, each out along its own arm,
- * staggered from the one nearest the pointer; leave and they lock back
- * together. The slider is the stagger, in ms. A tribute: the mark belongs to
- * the NixOS project.
+ * NixOS: the snowflake of six lambdas as thick plates facing you. It opens like a camera's aperture: as the
+ * pointer nears, the lambdas turn together round the middle and slide out along their arms, on a spring; leave and
+ * they close back into the snowflake. The read-out says how open it is; the slider is the widest opening. A
+ * tribute: the mark belongs to the NixOS project.
  *
- * Each lambda is one extruded plate: back face, sides, front face. The hit
- * test is a fixed disc round the mark's resting centre.
+ * Each part is an extruded plate, the mark's own outline with its holes cut in it: the face turned away, the sides,
+ * the face turned toward you, nearer parts painted later. The part under the pointer, tested against its outline at
+ * rest, takes the bright edge. The pointer is read against the mark's middle, which never moves.
  */
-const { clamp, mk, poly, register, tdone, tset, tval, tween, disposer, pointer } = HL;
+const { clamp, lerp, mk, poly, rad, register, spring, stepS, tween, tset, tval, tdone, reducedMotion, disposer, pointer } = HL;
 
-const K = 118, CX = 202, CY = 160, T = 7, APART = 0.14;
+const K = 118, CX = 200, CY = 158, T = 8, DEEP = 0.16;
+// the mark's outline, from the simple-icons drawing of it: closed loops in its own 24 square, y down
+const MARK = [[[7.35,1.59],[7.03,1.59],[6.71,1.59],[6.39,1.59],[6.07,1.59],[5.85,1.83],[5.69,2.11],[5.53,2.39],[5.37,2.66],[5.45,2.98],[5.61,3.25],[5.77,3.53],[5.93,3.81],[6.09,4.09],[6.25,4.36],[6.41,4.64],[6.57,4.92],[6.72,5.2],[6.7,5.46],[6.38,5.46],[6.06,5.46],[5.74,5.46],[5.42,5.46],[5.1,5.46],[4.78,5.46],[4.46,5.46],[4.14,5.46],[3.82,5.46],[3.6,5.7],[3.45,5.97],[3.29,6.25],[3.13,6.53],[2.98,6.81],[2.82,7.09],[2.66,7.37],[2.5,7.65],[2.77,7.79],[3.09,7.79],[3.41,7.79],[3.73,7.79],[4.05,7.79],[4.37,7.79],[4.69,7.79],[5.01,7.79],[5.33,7.79],[5.65,7.79],[5.97,7.79],[6.29,7.79],[6.61,7.79],[6.93,7.79],[7.25,7.79],[7.57,7.79],[7.89,7.79],[8.21,7.79],[8.53,7.79],[8.85,7.79],[9.17,7.79],[9.49,7.79],[9.81,7.79],[10.13,7.79],[10.45,7.79],[10.77,7.79],[11.09,7.79],[11.41,7.79],[11.73,7.79],[12.05,7.79],[12.37,7.79],[12.69,7.79],[13.01,7.79],[13.33,7.79],[13.65,7.79],[13.97,7.79],[13.94,7.5],[13.78,7.22],[13.62,6.95],[13.46,6.67],[13.3,6.39],[13.14,6.12],[12.98,5.84],[12.82,5.56],[12.51,5.46],[12.19,5.46],[11.87,5.46],[11.55,5.46],[11.23,5.46],[10.91,5.46],[10.59,5.46],[10.27,5.46],[9.95,5.46],[9.63,5.46],[9.42,5.2],[9.26,4.93],[9.1,4.65],[8.94,4.37],[8.78,4.09],[8.62,3.82],[8.47,3.54],[8.31,3.26],[8.15,2.98],[7.99,2.71],[7.83,2.43],[7.67,2.15],[7.51,1.87],[7.35,1.59]],[[13.49,1.59],[13.17,1.59],[12.85,1.6],[12.53,1.6],[12.21,1.6],[11.89,1.61],[11.57,1.61],[11.25,1.61],[10.93,1.62],[11.01,1.92],[11.17,2.2],[11.33,2.47],[11.49,2.75],[11.65,3.03],[11.81,3.31],[11.97,3.58],[12.13,3.86],[12.29,4.14],[12.45,4.41],[12.61,4.69],[12.77,4.97],[12.93,5.25],[13.09,5.52],[13.25,5.8],[13.41,6.08],[13.57,6.35],[13.73,6.63],[13.89,6.91],[14.05,7.18],[14.21,7.46],[14.37,7.74],[14.53,8.02],[14.69,8.29],[14.85,8.57],[15.01,8.85],[15.17,9.12],[15.33,9.4],[15.49,9.68],[15.65,9.96],[15.81,10.23],[15.97,10.51],[16.13,10.79],[16.29,11.06],[16.45,11.34],[16.61,11.62],[16.85,11.45],[17.01,11.18],[17.17,10.9],[17.33,10.62],[17.49,10.34],[17.65,10.06],[17.81,9.79],[17.97,9.51],[17.91,9.2],[17.75,8.92],[17.59,8.64],[17.43,8.37],[17.27,8.09],[17.11,7.81],[16.95,7.53],[16.79,7.25],[16.63,6.98],[16.47,6.7],[16.58,6.39],[16.74,6.11],[16.9,5.84],[17.07,5.56],[17.23,5.28],[17.39,5.01],[17.55,4.73],[17.71,4.45],[17.87,4.18],[18.03,3.9],[18.19,3.62],[18.35,3.35],[18.51,3.07],[18.67,2.79],[18.52,2.52],[18.36,2.24],[18.2,1.96],[18.04,1.69],[17.72,1.61],[17.4,1.61],[17.08,1.61],[16.76,1.61],[16.53,1.83],[16.37,2.1],[16.21,2.38],[16.05,2.66],[15.89,2.93],[15.73,3.21],[15.57,3.49],[15.41,3.76],[15.25,4.04],[15.09,4.31],[14.93,4.03],[14.77,3.75],[14.61,3.47],[14.45,3.2],[14.29,2.92],[14.13,2.64],[13.97,2.36],[13.81,2.09],[13.65,1.81]],[[20.4,5.81],[20.24,6.09],[20.08,6.37],[19.92,6.64],[19.76,6.92],[19.6,7.2],[19.44,7.47],[19.28,7.75],[19.12,8.03],[18.96,8.31],[18.8,8.58],[18.64,8.86],[18.48,9.14],[18.32,9.41],[18.16,9.69],[18.0,9.97],[17.84,10.25],[17.68,10.52],[17.52,10.8],[17.36,11.08],[17.2,11.36],[17.04,11.63],[16.88,11.91],[16.72,12.19],[16.56,12.46],[16.4,12.74],[16.24,13.02],[16.08,13.29],[15.92,13.57],[15.76,13.85],[15.6,14.13],[15.44,14.4],[15.28,14.68],[15.12,14.96],[14.96,15.23],[14.8,15.51],[14.64,15.79],[14.91,15.91],[15.23,15.91],[15.55,15.91],[15.87,15.91],[16.19,15.91],[16.51,15.91],[16.83,15.9],[17.15,15.9],[17.39,15.7],[17.55,15.42],[17.71,15.14],[17.87,14.86],[18.03,14.59],[18.19,14.31],[18.35,14.03],[18.51,13.76],[18.67,13.48],[18.83,13.2],[19.16,13.14],[19.48,13.15],[19.8,13.15],[20.12,13.15],[20.44,13.15],[20.76,13.15],[21.08,13.15],[21.4,13.15],[21.72,13.15],[22.04,13.15],[22.36,13.16],[22.68,13.16],[23.0,13.16],[23.32,13.16],[23.48,12.88],[23.64,12.61],[23.8,12.33],[23.96,12.05],[23.86,11.74],[23.7,11.46],[23.55,11.19],[23.39,10.91],[23.08,10.82],[22.76,10.82],[22.44,10.82],[22.12,10.82],[21.8,10.82],[21.48,10.81],[21.16,10.81],[20.84,10.81],[20.52,10.81],[20.29,10.67],[20.45,10.39],[20.61,10.11],[20.77,9.84],[20.93,9.56],[21.09,9.28],[21.25,9.01],[21.41,8.73],[21.57,8.45],[21.73,8.18],[21.64,7.87],[21.48,7.59],[21.32,7.32],[21.15,7.04],[20.99,6.76],[20.83,6.49],[20.66,6.21],[20.5,5.94]],[[9.41,8.09],[9.09,8.09],[8.77,8.09],[8.45,8.09],[8.13,8.09],[7.81,8.09],[7.49,8.09],[7.17,8.09],[6.85,8.09],[6.61,8.31],[6.45,8.59],[6.29,8.86],[6.13,9.14],[5.97,9.42],[5.81,9.69],[5.65,9.97],[5.49,10.25],[5.33,10.52],[5.17,10.8],[4.84,10.85],[4.52,10.85],[4.2,10.85],[3.88,10.85],[3.56,10.85],[3.24,10.85],[2.92,10.85],[2.6,10.85],[2.28,10.84],[1.96,10.84],[1.64,10.84],[1.32,10.84],[1.0,10.84],[0.68,10.84],[0.52,11.12],[0.36,11.4],[0.2,11.67],[0.04,11.95],[0.14,12.26],[0.3,12.54],[0.46,12.82],[0.62,13.1],[0.93,13.18],[1.25,13.18],[1.57,13.18],[1.89,13.18],[2.21,13.18],[2.53,13.18],[2.85,13.18],[3.17,13.18],[3.49,13.18],[3.71,13.34],[3.55,13.61],[3.39,13.89],[3.23,14.17],[3.06,14.44],[2.9,14.72],[2.74,15.0],[2.58,15.27],[2.42,15.55],[2.26,15.83],[2.36,16.14],[2.53,16.41],[2.69,16.69],[2.85,16.96],[3.01,17.24],[3.18,17.52],[3.34,17.79],[3.5,18.07],[3.74,17.94],[3.9,17.66],[4.06,17.38],[4.22,17.11],[4.38,16.83],[4.54,16.55],[4.7,16.28],[4.86,16.0],[5.02,15.72],[5.18,15.44],[5.34,15.17],[5.5,14.89],[5.66,14.61],[5.82,14.34],[5.98,14.06],[6.14,13.78],[6.3,13.5],[6.46,13.23],[6.62,12.95],[6.78,12.67],[6.94,12.4],[7.1,12.12],[7.26,11.84],[7.42,11.56],[7.58,11.29],[7.74,11.01],[7.9,10.73],[8.06,10.46],[8.22,10.18],[8.38,9.9],[8.54,9.62],[8.7,9.35],[8.86,9.07],[9.02,8.79],[9.18,8.52],[9.34,8.24]],[[7.32,12.26],[7.16,12.54],[7,12.82],[6.84,13.1],[6.68,13.37],[6.52,13.65],[6.36,13.93],[6.2,14.21],[6.04,14.48],[6.09,14.79],[6.25,15.07],[6.41,15.35],[6.57,15.63],[6.73,15.9],[6.89,16.18],[7.05,16.46],[7.21,16.74],[7.37,17.01],[7.53,17.29],[7.43,17.6],[7.27,17.88],[7.11,18.16],[6.95,18.43],[6.79,18.71],[6.62,18.99],[6.46,19.26],[6.3,19.54],[6.14,19.82],[5.98,20.09],[5.82,20.37],[5.66,20.65],[5.5,20.92],[5.34,21.2],[5.48,21.48],[5.64,21.75],[5.8,22.03],[5.96,22.31],[6.27,22.39],[6.59,22.39],[6.91,22.39],[7.23,22.39],[7.47,22.18],[7.63,21.91],[7.79,21.63],[7.96,21.35],[8.12,21.08],[8.28,20.8],[8.44,20.52],[8.6,20.25],[8.76,19.97],[8.92,19.69],[9.08,19.96],[9.24,20.24],[9.4,20.52],[9.56,20.8],[9.71,21.07],[9.87,21.35],[10.03,21.63],[10.19,21.91],[10.35,22.18],[10.58,22.41],[10.9,22.41],[11.22,22.4],[11.54,22.4],[11.86,22.4],[12.18,22.39],[12.5,22.39],[12.82,22.39],[13.14,22.38],[13.0,22.07],[12.84,21.79],[12.68,21.51],[12.52,21.24],[12.36,20.96],[12.2,20.68],[12.04,20.41],[11.88,20.13],[11.72,19.85],[11.56,19.57],[11.4,19.3],[11.24,19.02],[11.08,18.74],[10.92,18.47],[10.76,18.19],[10.6,17.91],[10.44,17.63],[10.28,17.36],[10.12,17.08],[9.96,16.8],[9.8,16.52],[9.64,16.25],[9.48,15.97],[9.32,15.69],[9.16,15.42],[9.0,15.14],[8.84,14.86],[8.68,14.59],[8.52,14.31],[8.36,14.03],[8.2,13.75],[8.04,13.48],[7.88,13.2],[7.72,12.92],[7.56,12.64],[7.4,12.37]],[[9.89,16.2],[10.05,16.48],[10.21,16.75],[10.37,17.03],[10.54,17.31],[10.7,17.58],[10.86,17.86],[11.02,18.14],[11.18,18.41],[11.48,18.51],[11.8,18.51],[12.12,18.51],[12.44,18.51],[12.76,18.52],[13.08,18.52],[13.4,18.52],[13.72,18.52],[14.04,18.52],[14.36,18.52],[14.57,18.77],[14.73,19.05],[14.89,19.33],[15.05,19.61],[15.21,19.89],[15.37,20.16],[15.53,20.44],[15.69,20.72],[15.85,21.0],[16.0,21.27],[16.16,21.55],[16.32,21.83],[16.48,22.11],[16.64,22.38],[16.96,22.38],[17.28,22.38],[17.6,22.38],[17.92,22.38],[18.14,22.14],[18.3,21.86],[18.46,21.59],[18.62,21.31],[18.54,21.0],[18.38,20.72],[18.22,20.44],[18.06,20.16],[17.9,19.89],[17.75,19.61],[17.59,19.33],[17.43,19.05],[17.27,18.78],[17.29,18.51],[17.61,18.51],[17.93,18.51],[18.25,18.52],[18.57,18.52],[18.89,18.52],[19.21,18.52],[19.53,18.52],[19.85,18.52],[20.17,18.52],[20.39,18.28],[20.55,18],[20.7,17.72],[20.86,17.44],[21.02,17.16],[21.17,16.89],[21.33,16.61],[21.49,16.33],[21.22,16.18],[20.9,16.18],[20.58,16.18],[20.26,16.18],[19.94,16.18],[19.62,16.18],[19.3,16.18],[18.98,16.18],[18.66,16.18],[18.34,16.18],[18.02,16.18],[17.7,16.18],[17.38,16.18],[17.06,16.18],[16.74,16.18],[16.42,16.18],[16.1,16.18],[15.78,16.18],[15.46,16.18],[15.14,16.18],[14.82,16.18],[14.5,16.18],[14.18,16.18],[13.86,16.18],[13.54,16.18],[13.22,16.18],[12.9,16.18],[12.58,16.18],[12.26,16.18],[11.94,16.18],[11.62,16.18],[11.3,16.18],[10.98,16.18],[10.66,16.18],[10.34,16.18],[10.02,16.18]]];
 
-/** The screen point of (u, v) on the plate, d deep: the front leans down and left of the back. */
-const W = (u, v, d) => [CX + u * K - d * 0.7, CY - v * K + d * 0.5];
-/** An extruded plate: back face, sides, front face, each a path. */
-const plate = (g) => ({ back: mk("path", { class: "sil" }, g), side: mk("path", { class: "fo" }, g), face: mk("path", { class: "sil" }, g) });
-/** Draws a plate of outline pts (u, v) between depths d0 (back) and d1 (front). */
-function setPlate(pl, pts, d0, d1) {
-  const f = pts.map(([u, v]) => W(u, v, d1)), b = pts.map(([u, v]) => W(u, v, d0));
-  pl.back.setAttribute("d", poly(b));
-  pl.side.setAttribute("d", f.map((p, i) => { const j = (i + 1) % f.length; return poly([p, f[j], b[j], b[i]]); }).join(""));
-  pl.face.setAttribute("d", poly(f));
+const inPoly = (q, pts) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) if ((pts[i][1] > q[1]) !== (pts[j][1] > q[1]) && q[0] < ((pts[j][0] - pts[i][0]) * (q[1] - pts[i][1])) / (pts[j][1] - pts[i][1]) + pts[i][0]) c = !c; return c; };
+const area = (l) => Math.abs(l.reduce((s, p, i) => { const q = l[(i + 1) % l.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0)) / 2;
+/** The mark's parts: each an outline (u right, v up, -1..1) with the holes cut in it, its middle and its size. */
+function parts() {
+  const L = MARK.map((l) => l.map(([x, y]) => [(x - 12) / 12, (12 - y) / 12]));
+  const depth = L.map((l, i) => L.filter((o, j) => j !== i && inPoly(l[0], o)).length), out = [];
+  L.forEach((l, i) => { if (depth[i] % 2 === 0) out.push({ loops: [l], a: area(l) }); });
+  L.forEach((l, i) => { if (depth[i] % 2) { const host = out.filter((p) => inPoly(l[0], p.loops[0])).sort((x, y) => x.a - y.a)[0]; if (host) host.loops.push(l); } });
+  return out.map((p, i) => { const o = p.loops[0], n = o.length; return { ...p, i, c: [o.reduce((s, q) => s + q[0], 0) / n, o.reduce((s, q) => s + q[1], 0) / n], pose: { dx: 0, dy: 0, rot: 0, pivot: null, yaw: 0, ypu: 0, dz: 0 } }; });
 }
-// the six lambdas, each one outline in the mark's own units, from the simple-icons drawing of the mark
-const LAMBDAS = [
-  [[-0.423, 0.946], [-0.547, 0.946], [-0.607, 0.841], [-0.466, 0.594], [-0.751, 0.595], [-0.871, 0.382], [0.192, 0.382], [0.069, 0.594], [-0.221, 0.595], [-0.423, 0.946]],
-  [[0.139, 0.946], [-0.105, 0.944], [0.426, 0.023], [0.548, 0.236], [0.403, 0.487], [0.607, 0.837], [0.545, 0.945], [0.423, 0.945], [0.281, 0.699], [0.139, 0.946]],
-  [[0.765, 0.565], [0.233, -0.356], [0.479, -0.355], [0.624, -0.104], [1.029, -0.105], [1.091, 0.002], [1.03, 0.107], [0.746, 0.108], [0.889, 0.355], [0.765, 0.565]],
-  [[-0.233, 0.356], [-0.479, 0.355], [-0.624, 0.104], [-1.029, 0.106], [-1.091, -0.002], [-1.03, -0.107], [-0.746, -0.108], [-0.889, -0.354], [-0.765, -0.565], [-0.233, 0.356]],
-  [[-0.425, -0.023], [-0.547, -0.236], [-0.403, -0.487], [-0.606, -0.837], [-0.544, -0.945], [-0.423, -0.945], [-0.28, -0.699], [-0.138, -0.946], [0.106, -0.944], [-0.425, -0.023]],
-  [[-0.193, -0.38], [-0.07, -0.592], [0.221, -0.593], [0.422, -0.944], [0.546, -0.944], [0.607, -0.839], [0.465, -0.592], [0.75, -0.593], [0.87, -0.38], [-0.193, -0.38]],
-].map((pts) => {
-  const c = [0, 1].map((i) => pts.reduce((t, p) => t + p[i], 0) / pts.length), l = Math.hypot(...c);
-  return { pts: pts.slice(0, -1), out: [c[0] / l, c[1] / l], ang: Math.atan2(c[1], c[0]) };
-});
+/** A point on screen: (u, v), d deep, turned by yaw about the upright line u = ypu. The turn mostly narrows; how far it carries a
+ * point toward you counts only a little (DEEP), so the mark stays level. The front leans down and left of the back. */
+const S = (u, v, d, yaw, ypu) => { const x = (u - ypu) * K, z = d - T / 2, c = Math.cos(yaw), s = Math.sin(yaw), x2 = x * c - z * s + ypu * K, z2 = x * s * DEEP + z * c + T / 2; return [CX + x2 - z2 * 0.7, CY - v * K + z2 * 0.5]; };
+/** A part as a plate: the face turned away, the sides, the face turned toward you. */
+const plate = (g) => { const b = mk("g", {}, g); return { g: b, away: mk("path", { class: "sil" }, b), side: mk("path", { class: "fo" }, b), toward: mk("path", { class: "sil" }, b) }; };
+/** Draws a part in its pose: moved (dx, dy), turned rot in the plane about its pivot, turned yaw upright, lifted dz toward you. */
+function drawPart(p) {
+  const { dx, dy, rot, pivot, yaw, ypu, dz } = p.pose, pv = pivot || p.c, c = Math.cos(rot), s = Math.sin(rot);
+  const at = ([u, v]) => { const x = u - pv[0], y = v - pv[1]; return [pv[0] + x * c - y * s + dx, pv[1] + x * s + y * c + dy]; };
+  const ls = p.loops.map((l) => l.map(at)), front = Math.cos(yaw) >= 0;
+  const f = ls.map((l) => l.map(([u, v]) => S(u, v, dz + T, yaw, ypu))), b = ls.map((l) => l.map(([u, v]) => S(u, v, dz, yaw, ypu))), sides = [];
+  ls.forEach((l, k) => l.forEach((q, i) => { const j = (i + 1) % l.length; sides.push({ d: ((q[0] + l[j][0]) / 2 - ypu) * Math.sin(yaw), q: poly([f[k][i], f[k][j], b[k][j], b[k][i]]) }); }));
+  p.el.away.setAttribute("d", (front ? b : f).map(poly).join(""));
+  p.el.side.setAttribute("d", sides.sort((x, y) => x.d - y.d).map((x) => x.q).join(""));
+  p.el.toward.setAttribute("d", (front ? f : b).map(poly).join(""));
+}
 
 function mount({ stage, svg, read }, value) {
-  const bag = disposer(); let stag = value;
+  const bag = disposer(); let amt = value;
+  const g = mk("g", {}, svg), ps = parts();
+  ps.forEach((p) => { p.el = plate(g); });
+  const big = ps.slice().sort((x, y) => y.a - x.a), M = [0, 0]; // parts, largest first; the mark's middle
+  // how near the pointer is to the mark's middle, which never moves: 1 at it, 0 well outside
+  const near = (q) => (q ? clamp(1.25 - Math.hypot(q[0] - CX, q[1] - CY) / (K * 1.1), 0, 1) : 0);
 
-  const g = mk("g", {}, svg);
-  const ls = LAMBDAS.map((l) => ({ ...l, el: plate(g), tw: tween(0) }));
-  // the bright edge: the lambda nearest the pointer while it is over the mark, the first at rest
-  let lit = -1;
-  const light = (i) => { if (i !== lit) { lit = i; ls.forEach((l, k) => l.el.face.classList.toggle("hi", k === i)); } };
-  light(0);
-
+  // the aperture: every lambda turns round the middle and slides out along the line through its own middle
+  const s = spring(0, { eps: 0.002 });
+  function pose(dt) {
+    const mv = stepS(s, dt);
+    for (const p of ps) { const l = Math.hypot(p.c[0], p.c[1]) || 1; p.pose.rot = rad(-30) * s.x; p.pose.pivot = M; p.pose.dx = (p.c[0] / l) * amt * s.x; p.pose.dy = (p.c[1] / l) * amt * s.x; }
+    return mv;
+  }
+  function point(q) { s.t = near(q); read.textContent = s.t ? `open ${Math.round(s.t * 100)}%` : "rest"; }
   let drawn = "";
-  function draw(now) {
-    const key = ls.map((l) => tval(l.tw, now).toFixed(3)).join();
-    if (key === drawn) return;
-    drawn = key;
-    for (const l of ls) {
-      const o = tval(l.tw, now) * APART, mv = ([u, v]) => [u + o * l.out[0], v + o * l.out[1]];
-      setPlate(l.el, l.pts.map(mv), 0, T);
-    }
+  function draw() {
+    const key = ps.map((p) => [p.pose.dx, p.pose.dy, p.pose.rot, p.pose.yaw, p.pose.dz].map((n) => n.toFixed(4)).join()).join("|");
+    if (key === drawn) return; drawn = key;
+    ps.forEach(drawPart);
+    // nearer parts are painted later
+    const order = ps.slice().sort((x, y) => x.pose.dz - y.pose.dz || x.i - y.i);
+    if (order.some((p, k) => g.children[k] !== p.el.g)) order.forEach((p) => g.append(p.el.g));
   }
-  draw(performance.now());
+  draw();
 
-  const B = register(stage, (_dt) => { const now = performance.now(); /* not the frame's timestamp: in a lazy iframe it runs seconds behind the clock tset was given */ draw(now); return !ls.every((l) => tdone(l.tw, now)); });
+  // each part lights while the pointer is over it, tested against its outline at rest; the topmost that holds it wins
+  const hit = ps.map((p) => ({ p, ls: p.loops.map((l) => l.map(([u, v]) => S(u, v, T, 0, 0))) }));
+  const under = (q) => { for (let k = hit.length - 1; k >= 0; k--) if (hit[k].ls.reduce((n, l) => n + (inPoly(q, l) ? 1 : 0), 0) % 2) return hit[k].p; return null; };
+  let lit = null;
+  const light = (q) => { const p = q ? under(q) : null; if (p !== lit) { lit = p; ps.forEach((x) => x.el.toward.classList.toggle("hi", x === p)); } };
+
+  const B = register(stage, (dt) => { const m = pose(dt, performance.now()); draw(); return m; });
   bag.add(B.unregister);
-
-  // the hit test: a fixed disc round the resting mark; the lambda nearest the pointer by angle starts the spread
-  let on = null;
-  function hover(p) {
-    const u = p ? (p[0] - CX) / K : 0, v = p ? (CY - p[1]) / K : 0, inside = !!p && Math.hypot(u, v) < 1.1;
-    const near = (l) => Math.abs(Math.atan2(Math.sin(l.ang - Math.atan2(v, u)), Math.cos(l.ang - Math.atan2(v, u))));
-    light(inside ? ls.indexOf(ls.reduce((a, b) => (near(b) < near(a) ? b : a))) : 0);
-    if (inside === on) return;
-    on = inside;
-    const now = performance.now(), pa = Math.atan2(v, u), gap = (l) => Math.abs(Math.atan2(Math.sin(l.ang - pa), Math.cos(l.ang - pa)));
-    const from = ls.indexOf(ls.reduce((a, b) => (gap(b) < gap(a) ? b : a)));
-    ls.forEach((l, k) => { const d = Math.round(Math.abs(Math.atan2(Math.sin(l.ang - ls[from].ang), Math.cos(l.ang - ls[from].ang))) / (Math.PI / 3)); tset(l.tw, inside ? 1 : 0, now, d * stag); });
-    read.textContent = inside ? "apart" : "rest";
-    B.wake();
-  }
-  hover(null);
-
-  bag.add(pointer(stage, { move: hover, leave: () => hover(null) }));
+  bag.add(pointer(stage, { move: (q) => { light(q); point(q); B.wake(); }, leave: () => { light(null); point(null); B.wake(); } }));
   bag.add(() => svg.replaceChildren());
+  point(null);
 
-  return { set: (v) => { stag = clamp(v, 0, 120); }, destroy: bag.dispose };
+  return { set: (v) => { amt = v; B.wake(); }, destroy: bag.dispose };
 }
 
 hairline({
   name: "nixos",
-  means: "NixOS's snowflake of six lambdas: hover it and they drift apart along their arms; leave and they lock back together.",
-  rules: [1, 2, 8, 10],
-  range: [0, 40, 80],
+  means: "NixOS's snowflake opens like a camera aperture: the lambdas turn together and slide out as the pointer nears.",
+  rules: [1, 3, 8, 10],
+  range: [0.06, 0.12, 0.18],
   mount,
 });
 </script>

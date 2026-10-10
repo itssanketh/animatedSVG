@@ -290,10 +290,12 @@ const CATEGORIES = [
   ["Animals", ["cat", "dog", "hedgehog", "turtle", "birds", "fish", "frog"]],
   ["Tech", ["laptop", "speaker", "ceiling"]],
   ["Objects", ["book", "gaze", "surprise"]],
-  ["Marks", ["ubuntu", "debian", "fedora", "arch", "manjaro", "nixos", "zorin"]],
+  ["Marks", ["ubuntu", "debian", "fedora", "arch", "manjaro", "nixos", "zorin", "mint", "redhat", "kali", "opensuse", "popos", "elementary", "gentoo", "endeavour", "centos", "rocky", "alma"]],
+  ["AI", ["spark", "clawd", "spinner", "terminal", "toolloop", "subagents", "context"]],
+  ["Data structures", ["stack", "queue", "linkedlist", "tree", "heap", "hashtable", "graph"]],
 ];
 // shown under a category's heading
-const NOTES = { Marks: "Linux distribution logos, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them." };
+const NOTES = { Marks: "Linux distribution logos, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them.", AI: "A tribute to Claude and Claude Code. The spark and Clawd belong to Anthropic; animatedSVG is not affiliated with Anthropic." };
 const FIGURES = CATEGORIES.flatMap(([, names]) => names);
 document.getElementById("count").textContent = `${FIGURES.length} figures`;
 
