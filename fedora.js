@@ -46,12 +46,17 @@ const bubble = () => {
 const STEM = [...cubic([0.48, 0.42], [0.3, 0.62], [0.06, 0.5], [0.06, 0.22]), ...cubic([0.06, 0.22], [0.06, -0.1], [0.06, -0.3], [-0.06, -0.44]).slice(1), ...cubic([-0.06, -0.44], [-0.22, -0.62], [-0.48, -0.42], [-0.34, -0.22]).slice(1)];
 const BAR = [[-0.3, 0.04], [0.4, 0.04]];
 
+/** A path's loops as point lists, read back from the numbers it was written with (M and L only). */
+const loops = (d) => (d || "").split("M").filter((s) => s.trim()).map((s) => { const n = s.match(/-?\d*\.?\d+/g).map(Number), out = []; for (let i = 0; i + 1 < n.length; i += 2) out.push([n[i], n[i + 1]]); return out; });
+/** Whether point q lies inside any of the loops. */
+const inLoops = (q, ls) => ls.some((pts) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) if ((pts[i][1] > q[1]) !== (pts[j][1] > q[1]) && q[0] < ((pts[j][0] - pts[i][0]) * (q[1] - pts[i][1])) / (pts[j][1] - pts[i][1]) + pts[i][0]) c = !c; return c; });
+
 function mount({ stage, svg, read }, value) {
   const bag = disposer(); let dur = value;
 
   const g = mk("g", {}, svg);
   const bub = plate(g), stem = plate(g), bar = plate(g);
-  stem.face.classList.add("hi"); bar.face.classList.add("hi");
+
   setPlate(bub, bubble(), 0, T);
   const f = [[bar, ribbon(BAR, 0.075)], [stem, ribbon(STEM, 0.075)]];
   // the loop: the bar holds still while the stem runs once round an infinity sign stood at the stem's own slant, like a loader, and curls back in
@@ -83,6 +88,10 @@ function mount({ stage, svg, read }, value) {
     setPlate(stem, ribbon(c, 0.075), T, T + 4);
   }
   draw(performance.now());
+  // each part lights while the pointer is over it, tested against its outline at rest: the f (stem or bar), else the bubble
+  const parts = [[bar.face, [bar.face, stem.face]], [stem.face, [stem.face, bar.face]], [bub.face, [bub.face]]].map(([h, els]) => ({ ls: loops(h.getAttribute("d")), els }));
+  let lit = null;
+  const light = (p) => { const pt = (p && parts.find((x) => inLoops(p, x.ls))) || null; if (pt !== lit) { lit = pt; parts.forEach((x) => x.els.forEach((e) => e.classList.toggle("hi", !!pt && pt.els.includes(e)))); } };
 
   const B = register(stage, (_dt) => { const now = performance.now(); /* not the frame's timestamp: in a lazy iframe it runs seconds behind the clock tset was given */ draw(now); return !tdone(loop, now); });
   bag.add(B.unregister);
@@ -90,6 +99,7 @@ function mount({ stage, svg, read }, value) {
   // the hit test: a fixed disc round the bubble; entering it starts one loop, unless one is still playing
   let on = false;
   function hover(p) {
+    light(p);
     const inside = !!p && Math.hypot((p[0] - CX) / K, (CY - p[1]) / K) < 1.05, now = performance.now();
     if (inside === on) return;
     on = inside;

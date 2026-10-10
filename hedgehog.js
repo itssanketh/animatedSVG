@@ -23,6 +23,11 @@ const ROWS = [[8, 26], [24, 24], [40, 20], [56, 15], [71, 9], [84, 3]];
 const falloff = (u) => (u <= 0.5 ? 1 - (u / 0.5) * 0.35 : u <= 1 ? 0.65 * (1 - (u - 0.5) / 0.5) : 0);
 const norm = (v) => { const l = Math.hypot(...v); return v.map((x) => x / l); };
 
+/** A path's loops as point lists, read back from the numbers it was written with (M and L only). */
+const loops = (d) => (d || "").split("M").filter((s) => s.trim()).map((s) => { const n = s.match(/-?\d*\.?\d+/g).map(Number), out = []; for (let i = 0; i + 1 < n.length; i += 2) out.push([n[i], n[i + 1]]); return out; });
+/** Whether point q lies inside any of the loops. */
+const inLoops = (q, ls) => ls.some((pts) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) if ((pts[i][1] > q[1]) !== (pts[j][1] > q[1]) && q[0] < ((pts[j][0] - pts[i][0]) * (q[1] - pts[i][1])) / (pts[j][1] - pts[i][1]) + pts[i][0]) c = !c; return c; });
+
 function mount({ stage, svg, read }, value) {
   const bag = disposer();
   let R = value, over = null;
@@ -52,24 +57,24 @@ function mount({ stage, svg, read }, value) {
     const f = (k / 8) * (Math.PI / 2) * 0.98;
     for (let j = 0; j < 48; j++) { const t = (j / 48) * 2 * Math.PI; dome.push(P(B * Math.cos(f) * Math.cos(t), A * Math.cos(f) * Math.sin(t) - 2, Z0 + H * Math.sin(f))); }
   }
-  mk("path", { d: poly(hull(dome)), class: "sil" }, g);
+  const back = mk("path", { d: poly(hull(dome)), class: "sil" }, g);
   // the belly's edge, a crease just over the ground on the near side
   mk("path", { d: open(Array.from({ length: 25 }, (_, j) => { const t = -Math.PI * 0.25 + (j / 24) * Math.PI; return P(B * 0.99 * Math.cos(t), A * 0.99 * Math.sin(t) - 2, Z0 + 1.2); })), class: "nf lo" }, g);
   // the head: a round face drawn out to a pointed snout, a round ear, an eye, a wet nose
   const HY = A * 0.66;
-  mk("path", { d: poly(hull(ell([0, HY, 6.6], [6.4, 6.8, 5.8]).concat(ell([0, HY + 6, 5.2], [3.4, 3, 3]), ell([0, A + 7.6, 4.2], [1.3, 1.3, 1.2])))), class: "sil" }, g);
+  const face = mk("path", { d: poly(hull(ell([0, HY, 6.6], [6.4, 6.8, 5.8]).concat(ell([0, HY + 6, 5.2], [3.4, 3, 3]), ell([0, A + 7.6, 4.2], [1.3, 1.3, 1.2])))), class: "sil" }, g);
   mk("path", { d: open([-1, -0.5, 0, 0.5, 1].map((t) => P(t * 1.8, A + 5.6 + (1 - t * t) * 0.6, 2.5 - (1 - t * t) * 0.4))), class: "nf lo" }, g);
   const ear = Array.from({ length: 16 }, (_, k) => { const t = (k / 16) * 2 * Math.PI; return P(4.6 + 1.5 * Math.cos(t), HY - 2.6 - 1.5 * Math.cos(t), 10.4 + 2 * Math.sin(t)); });
-  mk("path", { d: poly(ear), class: "" }, g);
+  const earEl = mk("path", { d: poly(ear), class: "" }, g);
   mk("path", { d: poly(ear.map((p, k) => { const c = ear.reduce((a, q) => [a[0] + q[0] / ear.length, a[1] + q[1] / ear.length], [0, 0]); return [c[0] + (p[0] - c[0]) * 0.5, c[1] + (p[1] - c[1]) * 0.5]; })), class: "nf lo" }, g);
   const eye = mk("circle", { r: 1.5, class: "dot m" }, g);
   place(eye, P(4.2, HY + 4, 8.2));
   const nose = mk("circle", { r: 1.7, class: "dot" }, g);
   place(nose, P(0, A + 8.8, 4.4));
-  const foreSp = mk("path", { class: "nf" }, g), hiSp = mk("path", { class: "nf hi" }, g);
+  const foreSp = mk("path", { class: "nf" }, g), hiSp = mk("path", { class: "nf" }, g), feet = [];
   // two small feet peeping out under the skirt of spines on the near side
   for (const [x, y] of [[13.6, -9], [12, 9.5]]) {
-    mk("path", { d: poly(hull(ell([x, y, 1.1], [2.2, 3, 1.2]))), class: "" }, g);
+    feet.push(mk("path", { d: poly(hull(ell([x, y, 1.1], [2.2, 3, 1.2]))), class: "" }, g));
     mk("path", { d: [-0.8, 0.8].map((o) => open([P(x + o, y + 2, 0.5), P(x + o, y + 2.6, 1.6)])).join(""), class: "nf lo" }, g);
   }
 
@@ -103,9 +108,13 @@ function mount({ stage, svg, read }, value) {
     Bk.wake();
   }
 
+  // each part lights while the pointer is over it, tested against its outline at rest; on the back, the raised spines light
+  const parts = [...feet, earEl, face, back].map((h) => ({ ls: loops(h.getAttribute("d")), els: [h === back ? hiSp : h] }));
+  let lit = null;
+  const light = (p) => { const pt = (p && parts.find((x) => inLoops(p, x.ls))) || null; if (pt !== lit) { lit = pt; parts.forEach((x) => x.els.forEach((e) => e.classList.toggle("hi", x === pt))); } };
   bag.add(pointer(stage, {
-    move: (p) => { const w = unproj(C, p[0], p[1], PZ); over = Math.hypot(w[0] / (B + R), (w[1] + 2) / (A + R)) < 1.4 ? w : null; retarget(); },
-    leave: () => { over = null; retarget(); },
+    move: (p) => { light(p); const w = unproj(C, p[0], p[1], PZ); over = Math.hypot(w[0] / (B + R), (w[1] + 2) / (A + R)) < 1.4 ? w : null; retarget(); },
+    leave: () => { light(null); over = null; retarget(); },
   }));
   bag.add(() => svg.replaceChildren());
 

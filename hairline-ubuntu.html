@@ -759,7 +759,10 @@ function mount({ stage, svg, read }, value) {
 
   const g = mk("g", {}, svg);
   const pieces = PIECES.map((a, i) => ({ a: rad(a), el: plate(g), out: tween(0) }));
-  pieces[4].el.face.classList.add("hi");
+  // the bright edge: the piece nearest the pointer while it is over the mark, piece 4 at rest
+  let lit = -1;
+  const light = (i) => { if (i !== lit) { lit = i; pieces.forEach((pc, k) => pc.el.face.classList.toggle("hi", k === i)); } };
+  light(4);
 
   let drawn = "";
   function draw(now) {
@@ -781,6 +784,7 @@ function mount({ stage, svg, read }, value) {
   function hover(p) {
     const u = p ? (p[0] - CX) / K : 0, v = p ? (CY - p[1]) / K : 0, inside = !!p && Math.hypot(u, v) < RC + RH + 0.1;
     const from = inside ? Math.round(((Math.atan2(v, u) * 180) / Math.PI + 60 + 360) % 360 / 60) % 6 : 0;
+    light(inside ? from : 4);
     if (inside === on) return;
     on = inside;
     const now = performance.now();

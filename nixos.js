@@ -41,7 +41,10 @@ function mount({ stage, svg, read }, value) {
 
   const g = mk("g", {}, svg);
   const ls = LAMBDAS.map((l) => ({ ...l, el: plate(g), tw: tween(0) }));
-  ls[0].el.face.classList.add("hi");
+  // the bright edge: the lambda nearest the pointer while it is over the mark, the first at rest
+  let lit = -1;
+  const light = (i) => { if (i !== lit) { lit = i; ls.forEach((l, k) => l.el.face.classList.toggle("hi", k === i)); } };
+  light(0);
 
   let drawn = "";
   function draw(now) {
@@ -62,6 +65,8 @@ function mount({ stage, svg, read }, value) {
   let on = null;
   function hover(p) {
     const u = p ? (p[0] - CX) / K : 0, v = p ? (CY - p[1]) / K : 0, inside = !!p && Math.hypot(u, v) < 1.1;
+    const near = (l) => Math.abs(Math.atan2(Math.sin(l.ang - Math.atan2(v, u)), Math.cos(l.ang - Math.atan2(v, u))));
+    light(inside ? ls.indexOf(ls.reduce((a, b) => (near(b) < near(a) ? b : a))) : 0);
     if (inside === on) return;
     on = inside;
     const now = performance.now(), pa = Math.atan2(v, u), gap = (l) => Math.abs(Math.atan2(Math.sin(l.ang - pa), Math.cos(l.ang - pa)));

@@ -749,6 +749,11 @@ const BROW = cubic([-20, 68], [-8, 74], [10, 75], [24, 69], 10);
 const V0 = 22;
 const oval = (cx, cy, rx, ry, n = 28) => Array.from({ length: n }, (_, k) => [cx + rx * Math.cos((k / n) * 2 * Math.PI), cy + ry * Math.sin((k / n) * 2 * Math.PI)]);
 
+/** A path's loops as point lists, read back from the numbers it was written with (M and L only). */
+const loops = (d) => (d || "").split("M").filter((s) => s.trim()).map((s) => { const n = s.match(/-?\d*\.?\d+/g).map(Number), out = []; for (let i = 0; i + 1 < n.length; i += 2) out.push([n[i], n[i + 1]]); return out; });
+/** Whether point q lies inside any of the loops. */
+const inLoops = (q, ls) => ls.some((pts) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) if ((pts[i][1] > q[1]) !== (pts[j][1] > q[1]) && q[0] < ((pts[j][0] - pts[i][0]) * (q[1] - pts[i][1])) / (pts[j][1] - pts[i][1]) + pts[i][0]) c = !c; return c; });
+
 function mount({ stage, svg, read }, value) {
   const bag = disposer();
   let reach = value;
@@ -772,12 +777,12 @@ function mount({ stage, svg, read }, value) {
   const fIn = rrect(-24.6, -7.6, 24.6, 7.6, 3.6, 5).map((q) => P(...W(q.u, V0 + 7, q.v)));
   const fring = foot.map((q) => ({ u: q.u, v: q.v, nu: q.nu, nv: q.nv }));
   reflect(svg, g, (x, y, z) => P(...W(x, V0 + z, y)), () => true, fring, 0, 10);
-  mk("path", { d: poly(hull(fAt(0).concat(fAt(7)))), class: "sil" }, g);
+  const stand = mk("path", { d: poly(hull(fAt(0).concat(fAt(7)))), class: "sil" }, g);
   mk("path", { d: poly(fIn), class: "nf lo" }, g);
 
   // the panel: its back shell, then its face
   mk("path", { d: shape(panel, -T / 2), class: "lo" }, g);
-  mk("path", { d: shape(panel, T / 2), class: "sil" }, g);
+  const card = mk("path", { d: shape(panel, T / 2), class: "sil" }, g);
 
   // the eye, back to front: iris, pupil, shines, then the plates that cut it, then the lids
   const iris = mk("path", { class: "sil" }, g), ring = mk("path", { class: "nf lo" }, g), pupil = mk("path", { class: "nf" }, g);
@@ -792,7 +797,7 @@ function mount({ stage, svg, read }, value) {
   const top = UPPER.map(([u, v], k) => { const t = k / (UPPER.length - 1); return [u - 0.6 * t, v + 1 + 4.2 * Math.sin(Math.PI * Math.min(1, t * 1.1))]; });
   const lash = [...UPPER, [31, 51.5], [34, 56], [29, 53.5], ...top.reverse()];
   mk("path", { d: shape(lash, T / 2 + 0.2), class: "lo" }, g);
-  mk("path", { d: shape(lash, T / 2 + 1.4), class: "sil" }, g);
+  const lashEl = mk("path", { d: shape(lash, T / 2 + 1.4), class: "sil" }, g);
   mk("path", { d: [[[8, 62.5], [10, 67]], [[15, 61], [18.5, 65]], [[21, 58.5], [25, 61.5]]].map(([a, b]) => open([Q(a, T / 2 + 1.4), Q(b, T / 2 + 1.4)])).join(""), class: "nf" }, g);
   mk("path", { d: open(BROW.map((p) => Q(p))), class: "nf" }, g);
 
@@ -812,6 +817,10 @@ function mount({ stage, svg, read }, value) {
     place(glint, Q([cx + 5 - u * 0.25, cy - 3 - v * 0.25], d));
   }
   draw();
+  // each part lights while the pointer is over it, tested against its outline at rest; the first that holds it wins
+  const parts = [lashEl, iris, card, stand].map((h) => ({ ls: loops(h.getAttribute("d")), els: [h] }));
+  let lit = null;
+  const light = (p) => { const pt = (p && parts.find((x) => inLoops(p, x.ls))) || null; if (pt !== lit) { lit = pt; parts.forEach((x) => x.els.forEach((e) => e.classList.toggle("hi", x === pt))); } };
 
   const B = register(stage, (dt) => { const a = stepS(iu, dt), b = stepS(iv, dt); draw(); return a || b; });
   bag.add(B.unregister);
@@ -828,7 +837,7 @@ function mount({ stage, svg, read }, value) {
       if (m > 1) { tu /= m; tv /= m; }
     }
     iu.t = tu; iv.t = tv;
-    iris.classList.toggle("hi", on);
+    light(p);
     const a = Math.atan2(tv / 0.55, tu), near = Math.hypot(tu, tv / 0.55) < reach * 0.3;
     read.textContent = !on ? "rest" : near ? "ahead" : "look " + DIRS[(Math.round(a / (Math.PI / 4)) + 8) % 8];
     B.wake();

@@ -45,7 +45,6 @@ function mount({ stage, svg, read }, value) {
   const g = mk("g", {}, svg);
 
   const sw = plate(g), shape = swirl();
-  sw.face.classList.add("hi");
   const turn = spring(REST, { eps: 0.05 });
   let drawn = NaN;
   function draw() {
@@ -66,6 +65,7 @@ function mount({ stage, svg, read }, value) {
     let t = REST;
     if (p) { const a = (Math.atan2(cy - p[1], p[0] - cx) * 180) / Math.PI - 90; t = clamp(((a + 540) % 360) - 180, -reach, reach); }
     turn.t = t;
+    sw.face.classList.toggle("hi", !!p); // the swirl takes the bright edge while the pointer turns it
     read.textContent = p ? `turn ${Math.round(t)}°` : "rest";
     B.wake();
   }

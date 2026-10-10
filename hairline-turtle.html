@@ -719,12 +719,10 @@ var HL = (() => {
 </script>
 <script type="module" id="hl-figure">
 /**
- * Turtle: a tortoise out walking, head forward on its neck, one front leg
- * reaching, its shell marked with plates. Bring the pointer over it and it
- * hides: head and legs draw into the shell one after another, the part nearest
- * the pointer first, and the shell settles to the ground. Take the pointer away
- * and they come back out in the same order. The read-out says `hide`. The
- * slider is the stagger, in ms.
+ * Turtle: a tortoise out walking, head forward on its neck, one front leg reaching, its shell marked with plates.
+ * Bring the pointer over it and it hides: head and legs draw into the shell one after another, the part nearest
+ * the pointer first, and the shell settles to the ground. Take the pointer away and they come back out in the
+ * same order. The part under the pointer takes the bright edge. The read-out says `hide`; the slider is the stagger, in ms.
  *
  * Head and legs are painted before the shell, so its rim covers them as they
  * draw in. The plates are drawn on the dome's surface and only where it faces
@@ -739,6 +737,9 @@ const A = 22, B = 16, H = 13, LIFT = 4.5, EYE = [0.612, 0.612, 0.5];
 // the parts that draw in: [x, y] where each sits when out, and where it hides
 const LEGS = [[B + 1, A - 7, 2.5], [-(B + 1), A - 9, 0], [B, -(A - 7), -1.5], [-B, -(A - 8), 0]];
 
+/** A path's loops as point lists, read back from the numbers it was written with (M and L only). */
+const loops = (d) => (d || "").split("M").filter((s) => s.trim()).map((s) => { const n = s.match(/-?\d*\.?\d+/g).map(Number), out = []; for (let i = 0; i + 1 < n.length; i += 2) out.push([n[i], n[i + 1]]); return out; });
+const inLoops = (q, ls) => ls.some((pts) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) if ((pts[i][1] > q[1]) !== (pts[j][1] > q[1]) && q[0] < ((pts[j][0] - pts[i][0]) * (q[1] - pts[i][1])) / (pts[j][1] - pts[i][1]) + pts[i][0]) c = !c; return c; });
 /** An ellipse as a ring of samples with their normals. */
 const ering = (rx, ry, n = 40) => Array.from({ length: n }, (_, k) => {
   const t = (k / n) * 2 * Math.PI, nu = Math.cos(t) / rx, nv = Math.sin(t) / ry, l = Math.hypot(nu, nv);
@@ -746,8 +747,7 @@ const ering = (rx, ry, n = 40) => Array.from({ length: n }, (_, k) => {
 });
 const shift = (ring, x, y) => ring.map((q) => ({ ...q, u: q.u + x, v: q.v + y }));
 
-const SEG = { 1: [3, 2], 14: [3, 2], 2: [2, 1], 13: [2, 1], 3: [3, 1], 12: [3, 1], 4: [0, 1], 11: [0, 1], 6: [0, 2], 9: [0, 2], 7: [3, 0], 8: [3, 0] };
-const LTBR = [3, 0, 2, 1], TRLB = [0, 1, 3, 2];
+const SEG = { 1: [3, 2], 14: [3, 2], 2: [2, 1], 13: [2, 1], 3: [3, 1], 12: [3, 1], 4: [0, 1], 11: [0, 1], 6: [0, 2], 9: [0, 2], 7: [3, 0], 8: [3, 0] }, LTBR = [3, 0, 2, 1], TRLB = [0, 1, 3, 2];
 /** One soft outline round convex shapes on screen: the zero contour of the smooth minimum of their distances (fillet k), by marching squares. */
 function soft(shapes, k = 2.5, step = 0.7) {
   step *= 2; // twice the callers' spacing: the contour is interpolated, so it looks the same for a quarter of the work
@@ -777,8 +777,7 @@ function soft(shapes, k = 2.5, step = 0.7) {
   }
   // marching squares: each crossing has a slot for its grid edge (node * 2 + down) and joins exactly two others
   const N = W * H * 2, px = new Float32Array(N), py = new Float32Array(N), n0 = new Int32Array(N).fill(-1), n1 = new Int32Array(N).fill(-1);
-  const at = (n, dn) => {
-    const key = n * 2 + dn;
+  const at = (n, dn) => { const key = n * 2 + dn;
     if (n0[key] < 0) { const a = f[n], t = a / (a - f[dn ? n + W : n + 1]), i = n % W; px[key] = X0 + (i + (dn ? 0 : t)) * step; py[key] = Y0 + ((n - i) / W + (dn ? t : 0)) * step; }
     return key;
   };
@@ -792,37 +791,29 @@ function soft(shapes, k = 2.5, step = 0.7) {
     for (let q = 0; q < sg.length; q += 2) link(edge(n, sg[q]), edge(n, sg[q + 1]));
   }
   // walk each loop, round its corners once (Chaikin) and write it at a tenth of a unit
-  const seen = new Uint8Array(N), lx = [], ly = [];
-  let d = "";
+  const seen = new Uint8Array(N), lx = [], ly = []; let d = "";
   for (let start = 0; start < N; start++) {
     if (n0[start] < 0 || seen[start]) continue;
-    lx.length = ly.length = 0;
-    let cur = start, prev = -1;
+    lx.length = ly.length = 0; let cur = start, prev = -1;
     while (cur >= 0 && !seen[cur]) {
       seen[cur] = 1; lx.push(px[cur]); ly.push(py[cur]);
       const a = n0[cur], b = n1[cur], nx = a >= 0 && a !== prev && !seen[a] ? a : b >= 0 && b !== prev && !seen[b] ? b : -1;
       prev = cur; cur = nx;
     }
-    const m = lx.length;
-    if (m <= 6) continue;
+    const m = lx.length; if (m <= 6) continue;
     for (let i = 0; i < m; i++) {
       const j = (i + 1) % m;
       d += (i ? "L" : "M") + (0.75 * lx[i] + 0.25 * lx[j]).toFixed(1) + " " + (0.75 * ly[i] + 0.25 * ly[j]).toFixed(1) + "L" + (0.25 * lx[i] + 0.75 * lx[j]).toFixed(1) + " " + (0.25 * ly[i] + 0.75 * ly[j]).toFixed(1);
-    }
-    d += "Z";
+    } d += "Z";
   }
   return d;
 }
 
 function mount({ stage, svg, read }, value) {
-  const bag = disposer();
-  let stag = value;
-
+  const bag = disposer(); let stag = value;
   const C = Cam(45, 0.5, 4.1);
   fit(C, [[-B - 6, -A - 3, 0], [B + 6, A + 17, 0], [B + 6, -A - 3, 0], [-B - 6, A + 17, 0], [0, 0, LIFT + H + 2]], 200, 166);
-  const P = proj(C), front = facing(C);
-
-  const g = mk("g", {}, svg);
+  const P = proj(C), front = facing(C), g = mk("g", {}, svg);
   // a leg: a thick scaly limb from under the rim out to a round foot with three nails
   const legs = LEGS.map(() => ({ limb: mk("path", { class: "sil" }, g), scales: mk("path", { class: "nf lo" }, g), foot: mk("path", { class: "" }, g), nails: mk("path", { class: "nf" }, g) }));
   const sph = (c, r) => { const o = []; for (let i = 0; i <= 8; i++) for (let j = 0; j < 16; j++) { const t = (i / 8) * Math.PI, f = (j / 16) * 2 * Math.PI; o.push(P(c[0] + r[0] * Math.sin(t) * Math.cos(f), c[1] + r[1] * Math.sin(t) * Math.sin(f), c[2] + r[2] * Math.cos(t))); } return o; };
@@ -853,8 +844,7 @@ function mount({ stage, svg, read }, value) {
   let drawn = "";
   function draw(now) {
     const v = parts.map((t) => tval(t, now)), s = tval(sink, now), key = v.map((x) => x.toFixed(3)).join() + s.toFixed(3);
-    if (key === drawn) return;
-    drawn = key;
+    if (key === drawn) return; drawn = key;
     const z0 = lerp(LIFT, 0.6, s);
     LEGS.forEach(([x, y, reach], i) => {
       const k = v[i + 1], cx = lerp(x, x * 0.5, k), cy = lerp(y + reach, y * 0.6, k);
@@ -886,6 +876,10 @@ function mount({ stage, svg, read }, value) {
     plates.setAttribute("d", HEX.map((h) => h.map((p, i) => line(p, h[(i + 1) % 6], top)).join("")).join("") + SEAMS.map(([a, b]) => line(a, b, top)).join(""));
   }
   draw(performance.now());
+  // each part lights while the pointer is over it, tested against its outline at rest; the first that holds it wins
+  const pick = [[dome, [dome]], [rim.sil, [rim.sil]], [head, [head]], ...legs.flatMap((l) => [[l.foot, [l.foot, l.limb]], [l.limb, [l.limb, l.foot]]])].map(([h, els]) => ({ ls: loops(h.getAttribute("d")), els }));
+  let lit = null;
+  const light = (p) => { const pt = (p && pick.find((x) => inLoops(p, x.ls))) || null; if (pt !== lit) { lit = pt; pick.forEach((x) => x.els.forEach((e) => e.classList.toggle("hi", pt && pt.els.includes(e)))); } };
 
   const Bk = register(stage, (_dt) => { const now = performance.now(); /* not the frame's timestamp: in a lazy iframe it runs seconds behind the clock tset was given */ draw(now); return !parts.every((t) => tdone(t, now)) || !tdone(sink, now); });
   bag.add(Bk.unregister);
@@ -895,6 +889,7 @@ function mount({ stage, svg, read }, value) {
   function hover(p) {
     let on = false, w = null;
     if (p) { w = unproj(C, p[0], p[1], LIFT); on = Math.hypot(w[0] / (B + 6), w[1] / (A + 8)) < 1; }
+    light(p);
     if (on === hidden) return;
     hidden = on;
     const now = performance.now(), from = w || [0, 0];
@@ -902,7 +897,7 @@ function mount({ stage, svg, read }, value) {
     const order = at.map((q, i) => [Math.hypot(q[0] - from[0], q[1] - from[1]), i]).sort((a, b) => a[0] - b[0]);
     order.forEach(([, i], r) => tset(parts[i], on ? 1 : 0, now, r * stag));
     tset(sink, on ? 1 : 0, now, on ? order.length * stag * 0.5 : 0);
-    dome.classList.toggle("hi", on); eye.setAttribute("class", on ? "dot m" : "dot");
+    eye.setAttribute("class", on ? "dot m" : "dot");
     read.textContent = on ? "hide" : "rest";
     Bk.wake();
   }

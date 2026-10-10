@@ -741,6 +741,11 @@ for (let i = 1; i < 10; i++) for (let j = 0; j < 20; j++) { const t = (i / 10) *
 SPH.push([0, 0, 1], [0, 0, -1]);
 const DIRS = ["e", "se", "s", "sw", "w", "nw", "n", "ne"];
 
+/** A path's loops as point lists, read back from the numbers it was written with (M and L only). */
+const loops = (d) => (d || "").split("M").filter((s) => s.trim()).map((s) => { const n = s.match(/-?\d*\.?\d+/g).map(Number), out = []; for (let i = 0; i + 1 < n.length; i += 2) out.push([n[i], n[i + 1]]); return out; });
+/** Whether point q lies inside any of the loops. */
+const inLoops = (q, ls) => ls.some((pts) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) if ((pts[i][1] > q[1]) !== (pts[j][1] > q[1]) && q[0] < ((pts[j][0] - pts[i][0]) * (q[1] - pts[i][1])) / (pts[j][1] - pts[i][1]) + pts[i][0]) c = !c; return c; });
+
 function mount({ stage, svg, read }, value) {
   const bag = disposer();
   let reach = value;
@@ -808,6 +813,7 @@ function mount({ stage, svg, read }, value) {
   });
   bag.add(B.unregister);
 
+  const bowl = loops(out.getAttribute("d"));
   function swim(p) {
     let tx = REST[0], ty = REST[1], th = REST[2], on = false;
     if (p) {
@@ -829,7 +835,8 @@ function mount({ stage, svg, read }, value) {
       }
     }
     px.t = tx; py.t = ty; hd.t = th;
-    part.body.classList.toggle("hi", on); eye.setAttribute("class", on ? "dot m" : "dot");
+    // the bright edge: the fish while it swims to the pointer; the bowl while the pointer is on the glass but out of reach
+    part.body.classList.toggle("hi", on); out.classList.toggle("hi", !on && !!p && inLoops(p, bowl)); eye.setAttribute("class", on ? "dot m" : "dot");
     read.textContent = !on ? "rest" : Math.hypot(tx, ty) < 3 ? "swim" : "swim " + DIRS[((Math.round(Math.atan2(ty, tx) / (Math.PI / 4)) % 8) + 8) % 8];
     B.wake();
   }

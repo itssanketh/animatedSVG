@@ -17,6 +17,11 @@ const W = 96, D = 64, BT = 2.6, LT = 2.4, REST = 100, LOW = 86;
 // code on the screen: [indent, length] per line, top to bottom
 const CODE = [[0, 34], [5, 44], [10, 28], [10, 50], [5, 24], [0, 38], [5, 20]];
 
+/** A path's loops as point lists, read back from the numbers it was written with (M and L only). */
+const loops = (d) => (d || "").split("M").filter((s) => s.trim()).map((s) => { const n = s.match(/-?\d*\.?\d+/g).map(Number), out = []; for (let i = 0; i + 1 < n.length; i += 2) out.push([n[i], n[i + 1]]); return out; });
+/** Whether point q lies inside any of the loops. */
+const inLoops = (q, ls) => ls.some((pts) => { let c = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) if ((pts[i][1] > q[1]) !== (pts[j][1] > q[1]) && q[0] < ((pts[j][0] - pts[i][0]) * (q[1] - pts[i][1])) / (pts[j][1] - pts[i][1]) + pts[i][0]) c = !c; return c; });
+
 function mount({ stage, svg, read }, value) {
   const bag = disposer();
   let max = value;
@@ -35,7 +40,7 @@ function mount({ stage, svg, read }, value) {
   const g = mk("g", {}, svg);
   const [ring, inner] = rings(0, 0, W, D, 5, 1.4);
   reflect(svg, g, P, front, ring, 0, 6);
-  put(solid(g), prism(P, front, ring, inner, 0, BT));
+  const base = solid(g); put(base, prism(P, front, ring, inner, 0, BT));
 
   // the deck: hinge, keys, trackpad, and the power light at the front right
   const deck = (pts) => poly(pts.map((q) => P(q.u, q.v, BT)));
@@ -49,7 +54,7 @@ function mount({ stage, svg, read }, value) {
   keys += deck(rrect(10 + 4 * 6.4, 10 + 3 * 6.4, 10 + 7 * 6.4 + 5, 10 + 3 * 6.4 + 5, 1.2, 2));
   mk("path", { d: keys, class: "nf lo" }, g);
   mk("path", { d: open([P(16, 3, BT), P(W - 16, 3, BT)]), class: "nf lo" }, g);
-  mk("path", { d: deck(rrect(W / 2 - 15, 41, W / 2 + 15, 57, 2.4, 4)), class: "nf" }, g);
+  const pad = mk("path", { d: deck(rrect(W / 2 - 15, 41, W / 2 + 15, 57, 2.4, 4)), class: "nf" }, g);
   const led = mk("circle", { r: 1.3, class: "dot" }, g);
   place(led, P(W - 7, D - 3.5, BT));
 
@@ -96,6 +101,10 @@ function mount({ stage, svg, read }, value) {
     }).join(""));
   }
   draw(performance.now());
+  // each part lights while the pointer is over it, tested against its outline at rest; the first that holds it wins
+  const parts = [[disp, [disp]], [sil, [sil]], [pad, [pad]], [base.sil, [base.sil]]].map(([h, els]) => ({ ls: loops(h.getAttribute("d")), els }));
+  let lit = null;
+  const light = (p) => { const pt = (p && parts.find((x) => inLoops(p, x.ls))) || null; if (pt !== lit) { lit = pt; parts.forEach((x) => x.els.forEach((e) => e.classList.toggle("hi", x === pt))); } };
 
   const B = register(stage, (dt) => { const now = performance.now(); /* not the frame's timestamp: in a lazy iframe it runs seconds behind the clock tset was given */ const m = stepS(ang, dt); draw(now); return m || !tdone(awake, now); });
   bag.add(B.unregister);
@@ -107,7 +116,7 @@ function mount({ stage, svg, read }, value) {
     const on = p && p[0] > xl && p[0] < xr && p[1] > yt && p[1] < yb;
     ang.t = on ? Math.round(lerp(LOW, max, clamp((yb - p[1]) / (yb - yt), 0, 1))) : REST;
     tset(awake, on ? 1 : 0, performance.now(), 0);
-    disp.classList.toggle("hi", on); led.classList.toggle("m", on);
+    light(p); led.classList.toggle("m", on);
     read.textContent = on ? ang.t + "°" : "rest";
     B.wake();
   }
