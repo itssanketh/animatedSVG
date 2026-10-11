@@ -8,7 +8,7 @@ Free, hand-built 3D line figures that react to the pointer. Each one is a single
 
 [**Browse the gallery →**](https://animatedsvg.vercel.app)
 
-![133 figures](https://img.shields.io/badge/figures-133-232327?style=flat-square)
+![160 figures](https://img.shields.io/badge/figures-160-232327?style=flat-square)
 ![0 dependencies](https://img.shields.io/badge/dependencies-0-232327?style=flat-square)
 ![light and dark](https://img.shields.io/badge/themes-light%20%2B%20dark-232327?style=flat-square)
 [![MIT license](https://img.shields.io/badge/license-MIT-232327?style=flat-square)](LICENSE)
@@ -36,7 +36,7 @@ Every figure is an isometric line drawing that answers the pointer. A cat wakes 
 | Section | Figures |
 |---|---|
 | **Animals** | cat · dog · hedgehog · turtle · birds · fish · frog |
-| **Tech** | laptop · speaker · ceiling (a rate limiter) |
+| **Tech** | speaker · ceiling (a rate limiter) |
 | **Objects** | book · bookshelf · gaze · surprise |
 | **Marks** | Ubuntu · Debian · Fedora · Arch · Manjaro · NixOS · Zorin · Mint · Red Hat · Kali · openSUSE · Pop!_OS · elementary · Gentoo · EndeavourOS · CentOS · Rocky · Alma |
 | **Logos** | Google · Vercel · GitHub · Git · Docker · Python · React · Node.js · Rust · Kubernetes |
@@ -44,14 +44,18 @@ Every figure is an isometric line drawing that answers the pointer. A cat wakes 
 | **Social** | Instagram · Facebook · Twitter · X · LinkedIn · YouTube · WhatsApp · TikTok · Reddit · Discord · Snapchat · Pinterest · Telegram |
 | **Dev brands** | VS Code · Figma · Slack · Notion · Spotify · npm · AWS · Firebase · PostgreSQL · Redis |
 | **Games** | game controller · Pac-Man ghost · Tetris · Minecraft block |
-| **AI** | Claude's spark · Clawd · the thinking spinner · terminal · tool loop · subagents · context window |
+| **AI** | Claude's spark · Clawd · the thinking spinner · terminal · tool loop · subagents · context window · neural net · attention map · token stream |
 | **Data structures** | stack · queue · linked list · binary search tree · min-heap · hash table · graph |
 | **Algorithms** | binary search · bubble sort · call stack · recursion tree · git branches · packet routing · CPU cache · quicksort · Dijkstra · binary byte |
-| **Everyday** | desk lamp · coffee mug · envelope · wall clock · potted plant · keyboard |
+| **Everyday** | desk lamp · coffee mug · envelope · wall clock · potted plant |
+| **Computer** | CPU · graphics card · motherboard · RAM · M.2 SSD · hard drive · power supply · PC case · monitor · laptop · keyboard · mouse |
+| **Food** | espresso machine · toaster · pizza · ramen |
+| **Transport** | bicycle · paper plane · toy train · car wipers |
+| **Nature** | oak · flower · mushroom · campfire |
 | **Music** | turntable · piano · metronome · cassette |
-| **Space** | rocket · ringed planet · satellite dish · moon phases |
+| **Space** | rocket · ringed planet · satellite dish · moon phases · black hole · comet · astronaut |
 | **Weather** | rain cloud · sun · weathervane · umbrella |
-| **Dev tools** | server rack · database · CI pipeline · mouse |
+| **Dev tools** | server rack · database · CI pipeline |
 | **Anime** | One Piece: straw hat · Gum-Gum Fruit · Jolly Roger · Going Merry · Bleach: Hollow mask · Zangetsu · Senbonzakura · Sode no Shirayuki |
 
 Each figure has its own move. A few favourites:

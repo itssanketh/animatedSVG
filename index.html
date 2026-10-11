@@ -10,7 +10,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://animatedsvg.vercel.app/">
 <meta property="og:image" content="https://animatedsvg.vercel.app/og.png">
-<meta property="og:image:width" cont  exent="1200">
+<meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="animatedSVG: a line-drawn cat beside the headline 'Line art that moves when you do.'">
 <meta name="twitter:card" content="summary_large_image">
@@ -104,7 +104,12 @@
   /* gallery */
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 24px; margin-top: 48px; }
   .card { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
-  .card iframe { display: block; width: 100%; height: 520px; border: 0; border-bottom: 1px solid var(--line); background: var(--ground); }
+  /* a card shows a still of its figure until the pointer comes to it; then the live figure loads over the still */
+  .live { position: relative; height: 520px; border-bottom: 1px solid var(--line); background: var(--ground); }
+  .live img, .live iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+  .live img { object-fit: cover; object-position: top center; }
+  .live iframe { opacity: 0; transition: opacity .15s; }
+  .live.on iframe { opacity: 1; }
   .card .body { padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .card h3 { margin: 0; text-transform: capitalize; }
   .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; }
@@ -148,6 +153,60 @@
   footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 24px; line-height: 1.7; }
   footer a { color: var(--muted); }
 
+  /* search */
+  .search { position: relative; margin-top: 40px; max-width: 560px; }
+  .search input { width: 100%; height: 46px; padding: 0 44px 0 42px; font: 15px/1 inherit; font-family: inherit; color: var(--ink);
+    background: var(--raise); border: 1px solid var(--line); border-radius: 10px; outline: none; }
+  .search input:focus { border-color: var(--ink); }
+  .search input::-webkit-search-cancel-button { display: none; }
+  .search svg { position: absolute; left: 14px; top: 14px; width: 18px; height: 18px; stroke: var(--muted); fill: none; stroke-width: 1.6; stroke-linecap: round; }
+  .search kbd { position: absolute; right: 12px; top: 12px; font: 11px/20px ui-monospace, monospace; padding: 0 7px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); }
+  .result { color: var(--muted); margin-top: 14px; min-height: 18px; }
+  .empty { margin-top: 40px; padding: 40px 24px; border: 1px dashed var(--line); border-radius: 14px; text-align: center; color: var(--muted); }
+  .empty[hidden], .card[hidden] { display: none; }
+  /* a card is only laid out and painted near the screen */
+  .card { content-visibility: auto; contain-intrinsic-size: auto 590px; }
+
+  /* use it */
+  .snip-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 36px; }
+  .snip-tabs button[aria-selected="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+  .snip { position: relative; }
+  .snip pre { margin-top: 14px; min-height: 150px; }
+  .snip .copy { position: absolute; top: 10px; right: 10px; height: 28px; padding: 0 10px; background: var(--ground); }
+  .params { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; margin-top: 18px; }
+  .params div { border: 1px solid var(--line); border-radius: 12px; padding: 16px; font-size: 14px; color: var(--muted); }
+  .params code { color: var(--ink); }
+  .where { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; margin-top: 28px; }
+  .where div { border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .where p { margin: 0; color: var(--muted); font-size: 13.5px; }
+  .examples { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 24px; margin-top: 28px; }
+  .example { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+  .example .bar { display: flex; gap: 6px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--raise); }
+  .example .bar i { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--line); }
+  .example .bar span { margin-left: 8px; color: var(--muted); }
+  .example .page { padding: 22px 22px 18px; text-align: center; }
+  .example .page iframe { display: block; width: 100%; height: 300px; border: 0; margin: 0 auto 6px; }
+  .example .page h3 { font-size: 20px; }
+  .example .page p { color: var(--muted); margin: 6px 0 16px; font-size: 14px; }
+  .example details { border-top: 1px solid var(--line); padding: 12px 16px; margin-top: auto; }
+  .example summary { cursor: pointer; color: var(--muted); }
+  .example pre { margin-top: 12px; font-size: 11.5px; }
+
+  /* suggest */
+  .suggest { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; align-items: start; }
+  @media (max-width: 820px) { .suggest { grid-template-columns: minmax(0, 1fr); } }
+  .form { display: grid; gap: 16px; }
+  .form label { display: grid; gap: 7px; color: var(--muted); }
+  .form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 560px) { .form .row { grid-template-columns: 1fr; } }
+  .form input, .form textarea, .form select { font: 15px/1.4 ui-sans-serif, system-ui, sans-serif; color: var(--ink); background: var(--raise);
+    border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px; width: 100%; }
+  .form input:focus, .form textarea:focus, .form select:focus { outline: none; border-color: var(--ink); }
+  .form input[type="file"] { padding: 9px; }
+  .form input::file-selector-button { font: 12px ui-monospace, monospace; color: var(--ink); background: var(--ground); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; margin-right: 10px; cursor: pointer; }
+  .form .hint { color: var(--muted); font-size: 13px; margin: 0; }
+  .form button { justify-self: start; height: 42px; padding: 0 20px; }
+
   #toast {
     position: fixed; left: 50%; bottom: 24px; z-index: 20; translate: -50% 16px; opacity: 0; pointer-events: none;
     background: var(--ink); color: var(--ground); padding: 11px 15px; border-radius: 8px; transition: opacity .2s, translate .2s;
@@ -166,7 +225,8 @@
     </a>
     <div class="links mono">
       <a href="#gallery">Gallery</a>
-      <a href="#how">How it works</a>
+      <a href="#use">Use it</a>
+      <a href="#suggest">Suggest</a>
       <a href="#about">About</a>
       <button class="mode" id="mode" type="button" role="switch" aria-checked="false" aria-label="Dark theme">
         <svg viewBox="0 0 60 32" aria-hidden="true">
@@ -188,7 +248,7 @@
       <p class="lede">animatedSVG is a free library of hand-built 3D line figures that react to the pointer. Each one is a single HTML file with no dependencies. Copy it, embed it, or download it, and it works on any website.</p>
       <div class="cta">
         <a class="btn primary" href="#gallery">Browse the gallery</a>
-        <a class="btn" href="#how">How to use it</a>
+        <a class="btn" href="#use">How to use it</a>
       </div>
       <div class="facts mono"><span id="count">12 figures</span><span>0 dependencies</span><span>light + dark</span><span>free to use</span></div>
     </div>
@@ -218,8 +278,15 @@
       <span class="eyebrow">Gallery</span>
       <h2>Pick a figure. Take the code.</h2>
       <p class="lede">Every figure below is running live. Hover it, then copy the full code or an embed snippet for your own site.</p>
+      <div class="search" role="search">
+        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6"/><path d="M13 13 L18 18"/></svg>
+        <input id="q" type="search" placeholder="Search figures: fan, logo, space, react…" aria-label="Search figures" autocomplete="off" spellcheck="false">
+        <kbd>/</kbd>
+      </div>
+      <div class="result mono" id="result" aria-live="polite"></div>
       <div class="tabs mono" id="tabs" role="group" aria-label="Filter by category"></div>
       <div id="cats"></div>
+      <div class="empty" id="empty" hidden><p>No figure matches that yet.</p><a class="btn primary" id="ask" href="#suggest">Suggest it</a></div>
     </div>
   </section>
 
@@ -239,6 +306,67 @@
         <li><div><h3>Paste it into your site</h3><p>Works in plain HTML, WordPress, Webflow, React or anything else that accepts HTML.</p></div></li>
         <li><div><h3>Set the theme (optional)</h3><p>Add <code>data-theme="light"</code> or <code>"dark"</code> to the figure's <code>&lt;html&gt;</code> tag to lock its colours.</p></div></li>
       </ol>
+    </div>
+  </section>
+
+  <section id="use">
+    <div class="wrap">
+      <span class="eyebrow">Use it</span>
+      <h2>Paste one line. It works anywhere.</h2>
+      <p class="lede">Every figure is a page you can drop into an <code>&lt;iframe&gt;</code>. Pick your stack, copy the snippet, change the name to any figure in the gallery.</p>
+      <div class="snip-tabs mono" id="snip-tabs" role="tablist" aria-label="Your stack"></div>
+      <div class="snip"><pre><code id="snip-code"></code></pre><button class="copy mono" id="snip-copy" type="button">Copy</button></div>
+      <div class="params">
+        <div><code>hairline-NAME.html</code><br>the figure: the name on its card in the gallery, such as <code>gpu</code> or <code>cat</code>.</div>
+        <div><code>?theme=dark</code> or <code>light</code><br>locks its colours. Leave it off and it follows the visitor's system.</div>
+        <div><code>&amp;intensity=0..1</code><br>how strongly it answers the pointer: a calm 0.2 for a footer, a lively 1 for a hero.</div>
+      </div>
+
+      <h3 style="margin-top:56px;font-size:20px">Where to use it</h3>
+      <div class="where">
+        <div><h3>Hero sections</h3><p>A figure beside your headline that answers the cursor, in place of a stock illustration.</p></div>
+        <div><h3>404 and error pages</h3><p>Turn a dead end into something people play with for a second.</p></div>
+        <div><h3>Empty states</h3><p>An empty inbox or an empty cart, with something alive instead of a grey box.</p></div>
+        <div><h3>Docs and feature lists</h3><p>Show an idea moving: a sort, a cache, a pipeline, beside the text that explains it.</p></div>
+        <div><h3>Portfolios and READMEs</h3><p>Link a live figure from a project page, or drop one into your about section.</p></div>
+      </div>
+
+      <h3 style="margin-top:56px;font-size:20px">Examples, built with the snippets above</h3>
+      <div class="examples" id="examples"></div>
+    </div>
+  </section>
+
+  <section id="suggest">
+    <div class="wrap suggest">
+      <div>
+        <span class="eyebrow">Suggest a figure</span>
+        <h2>What should be built next?</h2>
+        <p class="lede">Tell me what you'd like animated and where you'd use it. Add a reference, a link or an image, and I'll get back to you by email.</p>
+        <ul class="role">
+          <li><strong>Good suggestions</strong> name the object and what it should do when the pointer comes near.</li>
+          <li><strong>References help:</strong> a photo, a logo, a GIF or a link to an animation you like.</li>
+          <li><strong>Everything is free:</strong> new figures land in the gallery for everyone.</li>
+        </ul>
+      </div>
+      <form class="form" id="suggest-form" action="https://formsubmit.co/sankeths908@gmail.com" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="_subject" value="New figure suggestion from animatedSVG">
+        <input type="hidden" name="_template" value="table">
+        <input type="hidden" name="_next" id="next" value="https://animatedsvg.vercel.app/?sent=1#suggest">
+        <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off">
+        <div class="row">
+          <label class="mono">Your name<input name="name" required autocomplete="name"></label>
+          <label class="mono">Your email<input type="email" name="email" required autocomplete="email"></label>
+        </div>
+        <label class="mono">The figure<input name="figure" id="idea" required placeholder="A vinyl record that scratches back and forth"></label>
+        <label class="mono">Section
+          <select name="section" id="section"><option value="">Choose one, or leave it</option></select>
+        </label>
+        <label class="mono">How should it move, and where will you use it?<textarea name="details" rows="4" placeholder="It spins up when the pointer comes near; for the hero of my music blog"></textarea></label>
+        <label class="mono">Reference link<input type="url" name="reference_link" placeholder="https://"></label>
+        <label class="mono">Reference image<input type="file" name="attachment" accept="image/*"></label>
+        <p class="hint">Sent by email through FormSubmit. Your address is only used to reply.</p>
+        <button class="primary" type="submit">Send suggestion</button>
+      </form>
     </div>
   </section>
 
@@ -292,7 +420,7 @@
 
 <template id="card">
   <article class="card">
-    <iframe loading="lazy"></iframe>
+    <div class="live"><img class="poster" alt="" loading="lazy" decoding="async" width="366" height="520"></div>
     <div class="body">
       <h3></h3>
       <div class="actions mono">
@@ -363,7 +491,7 @@ const withTheme = (file) => (root.dataset.theme ? `${file}?theme=${root.dataset.
   // every live figure follows the page: pressing its own switch where the browser lets us reach in, reloading it otherwise
   function syncFigures(mode) {
     for (const f of document.querySelectorAll("iframe")) {
-      if (!f.getAttribute("src")) continue;
+      if (!f.getAttribute("src") || f.dataset.off) continue;
       let done = false;
       try { const d = f.contentDocument, own = d && d.getElementById("theme"); if (own) { const dark = d.documentElement.dataset.theme ? d.documentElement.dataset.theme === "dark" : f.contentWindow.matchMedia("(prefers-color-scheme: dark)").matches; if (dark !== (mode === "dark")) own.click(); done = true; } } catch (e) {}
       if (!done) f.src = `${f.getAttribute("src").split("?")[0]}?theme=${mode}`;
@@ -376,6 +504,7 @@ const withTheme = (file) => (root.dataset.theme ? `${file}?theme=${root.dataset.
     setTimeout(() => root.classList.remove("fading"), 600);
     document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", mode === "dark" ? "#08090a" : "#ffffff"));
     goal = mode === "dark" ? 1 : 0; label(); go(); syncFigures(mode);
+    document.dispatchEvent(new Event("themechange"));
   }
   btn.addEventListener("click", () => setMode(isDark() ? "light" : "dark", true));
 })();
@@ -385,7 +514,7 @@ document.querySelector(".stage iframe").src = withTheme("hairline-cat.html");
 
 const CATEGORIES = [
   ["Animals", ["cat", "dog", "hedgehog", "turtle", "birds", "fish", "frog"]],
-  ["Tech", ["laptop", "speaker", "ceiling"]],
+  ["Tech", ["speaker", "ceiling"]],
   ["Objects", ["book", "bookshelf", "gaze", "surprise"]],
   ["Marks", ["ubuntu", "debian", "fedora", "arch", "manjaro", "nixos", "zorin", "mint", "redhat", "kali", "opensuse", "popos", "elementary", "gentoo", "endeavour", "centos", "rocky", "alma"]],
   ["Logos", ["google", "vercel", "github", "git", "docker", "python", "react", "nodejs", "rust", "kubernetes"]],
@@ -393,14 +522,18 @@ const CATEGORIES = [
   ["Social", ["instagram", "facebook", "twitter", "x-logo", "linkedin", "youtube", "whatsapp", "tiktok", "reddit", "discord", "snapchat", "pinterest", "telegram"]],
   ["Dev brands", ["vscode", "figma", "slack", "notion", "spotify", "npm", "aws", "firebase", "postgres", "redis"]],
   ["Games", ["gamepad", "ghost", "tetris", "minecraft"]],
-  ["AI", ["spark", "clawd", "spinner", "terminal", "toolloop", "subagents", "context"]],
+  ["AI", ["spark", "clawd", "spinner", "terminal", "toolloop", "subagents", "context", "neuralnet", "attention", "tokens"]],
   ["Algorithms", ["binsearch", "sort", "callstack", "recursion", "branches", "routing", "cache", "quicksort", "dijkstra", "binary"]],
   ["Data structures", ["stack", "queue", "linkedlist", "tree", "heap", "hashtable", "graph"]],
-  ["Everyday", ["lamp", "mug", "envelope", "clock", "plant", "keyboard"]],
+  ["Everyday", ["lamp", "mug", "envelope", "clock", "plant"]],
+  ["Computer", ["cpu", "gpu", "motherboard", "ram", "ssd", "hdd", "psu", "pccase", "monitor", "laptop", "keyboard", "mouse"]],
+  ["Food", ["coffee", "toaster", "pizza", "ramen"]],
+  ["Transport", ["bicycle", "paperplane", "train", "wipers"]],
+  ["Nature", ["oak", "flower", "mushroom", "campfire"]],
   ["Music", ["turntable", "piano", "metronome", "cassette"]],
-  ["Space", ["rocket", "planet", "dish", "moon"]],
+  ["Space", ["rocket", "planet", "dish", "moon", "blackhole", "comet", "astronaut"]],
   ["Weather", ["cloud", "sun", "weathervane", "umbrella"]],
-  ["Dev tools", ["rack", "database", "pipeline", "mouse"]],
+  ["Dev tools", ["rack", "database", "pipeline"]],
   ["Anime", ["strawhat", "devilfruit", "jollyroger", "merry", "hollowmask", "zangetsu", "senbonzakura", "shirayuki"]],
 ];
 // shown under a category's heading
@@ -419,8 +552,14 @@ async function copy(text, msg) {
   catch { say("Copy failed. Use Download instead."); }
 }
 
-const sections = {}, buttons = [];
+// names that read better than the file names, and words people search for
+const LABELS = { clang: "C", cplusplus: "C++", csharp: "C#", golang: "Go", "x-logo": "X", vscode: "VS Code", npm: "npm", aws: "AWS", postgres: "PostgreSQL", gpu: "Graphics card", cpu: "CPU", ram: "RAM", ssd: "M.2 SSD", hdd: "Hard drive", psu: "Power supply", pccase: "PC case", binsearch: "Binary search", linkedlist: "Linked list", hashtable: "Hash table", callstack: "Call stack", toolloop: "Tool loop", paperplane: "Paper plane", blackhole: "Black hole", hollowmask: "Hollow mask", devilfruit: "Devil fruit", jollyroger: "Jolly Roger", strawhat: "Straw hat", merry: "Going Merry", senbonzakura: "Senbonzakura", shirayuki: "Sode no Shirayuki", neuralnet: "Neural net", popos: "Pop!_OS", opensuse: "openSUSE", redhat: "Red Hat", nodejs: "Node.js", endeavour: "EndeavourOS", oak: "Oak tree", ghost: "Pac-Man ghost", minecraft: "Minecraft block", gamepad: "Controller" };
+const WORDS = { gpu: "fan nvidia rtx", cpu: "processor chip", psu: "fan power", pccase: "tower fan", hdd: "disk storage", ssd: "nvme storage", ram: "memory ddr", monitor: "screen display", gamepad: "playstation dualsense ps5 game", ghost: "pacman game", tetris: "game", minecraft: "game block grass", "x-logo": "twitter", twitter: "bird", oak: "tree wind", coffee: "espresso", wipers: "car rain", bicycle: "bike", tokens: "llm stream", attention: "transformer llm", neuralnet: "ai deep learning", spark: "claude", clawd: "claude", hollowmask: "bleach ichigo", zangetsu: "bleach sword", senbonzakura: "bleach", shirayuki: "bleach", strawhat: "one piece luffy", merry: "one piece ship", devilfruit: "one piece", jollyroger: "one piece", react: "jsx", javascript: "js", python: "py", campfire: "fire", sun: "weather", cloud: "rain" };
+const label = (n) => LABELS[n] || n.charAt(0).toUpperCase() + n.slice(1);
+const sections = {}, buttons = [], cards = [];
+let current = "All";
 function show(which) {
+  current = which;
   for (const [cat, sec] of Object.entries(sections)) sec.hidden = which !== "All" && which !== cat;
   for (const b of buttons) b.setAttribute("aria-pressed", String(b.dataset.cat === which));
 }
@@ -428,33 +567,168 @@ for (const [cat, n] of [["All", FIGURES.length], ...CATEGORIES.map(([c, names]) 
   const b = document.createElement("button");
   b.dataset.cat = cat;
   b.innerHTML = `${cat} <span>${n}</span>`;
-  b.onclick = () => show(cat);
+  b.onclick = () => { if (q.value) { q.value = ""; search(); } show(cat); };
   buttons.push(b); tabs.append(b);
 }
 for (const [cat, names] of CATEGORIES) {
   const sec = document.createElement("section");
   sec.className = "cat";
-  sec.innerHTML = `<header><h3>${cat}</h3><span class="mono" style="color:var(--muted)">${names.length} figures</span></header>${NOTES[cat] ? `<p class="lede" style="margin-top:14px;font-size:14px">${NOTES[cat]}</p>` : ""}<div class="grid"></div>`;
+  sec.innerHTML = `<header><h3>${cat}</h3><span class="mono count" style="color:var(--muted)">${names.length} figures</span></header>${NOTES[cat] ? `<p class="lede" style="margin-top:14px;font-size:14px">${NOTES[cat]}</p>` : ""}<div class="grid"></div>`;
   sections[cat] = sec; cats.append(sec);
 }
 show("All");
 
+/* A figure is a whole page, so 160 of them running at once is what made the gallery lag. Each one now loads only when it
+   comes near the screen and is unloaded once it is well past, so a screenful run at a time however far you scroll. */
+const load = (f) => { if (f.dataset.on) return; f.dataset.on = "1"; delete f.dataset.off; f.src = withTheme(f.dataset.file); };
+const unload = (f) => { if (!f.dataset.on) return; delete f.dataset.on; f.dataset.off = "1"; f.src = "about:blank"; };
+const near = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) load(e.target); }, { rootMargin: "400px 0px" });
+const far = new IntersectionObserver((es) => { for (const e of es) if (!e.isIntersecting) unload(e.target); }, { rootMargin: "1600px 0px" });
+const watch = (f) => { near.observe(f); far.observe(f); };
+
+/* Gallery cards go further: each shows a still of its figure at rest, and only the card the pointer is on (or that was
+   tapped) runs live, swapped in once loaded. A few stay warm after the pointer leaves; the rest are unloaded. */
+const posterSrc = (name) => `posters/${name}-${root.dataset.theme === "dark" ? "dark" : "light"}.webp`;
+document.addEventListener("themechange", () => { for (const img of document.querySelectorAll("img.poster")) img.src = posterSrc(img.dataset.name); });
+const warm = [], WARM = 3;
+// the live frame exists only while the card is awake: no empty frames, no documents kept for cards nobody is looking at
+const sleep = (live) => { live.classList.remove("on"); live.querySelector("iframe")?.remove(); const i = warm.indexOf(live); if (i >= 0) warm.splice(i, 1); };
+const gone = new IntersectionObserver((es) => { for (const e of es) if (!e.isIntersecting) sleep(e.target); }, { rootMargin: "800px 0px" });
+function wake(live) {
+  const go = () => {
+    if (!live.querySelector("iframe")) {
+      const f = document.createElement("iframe");
+      f.title = live.dataset.title; f.tabIndex = -1; f.dataset.on = "1";
+      f.onload = () => live.classList.add("on");
+      f.src = withTheme(live.dataset.file);
+      live.append(f);
+    }
+    const i = warm.indexOf(live); if (i >= 0) warm.splice(i, 1); warm.push(live);
+    while (warm.length > WARM) sleep(warm[0]);
+  };
+  live.addEventListener("pointerenter", go);
+  live.addEventListener("touchstart", go, { passive: true });
+  live.closest(".card").addEventListener("focusin", go);
+  gone.observe(live);
+}
+
 for (const [cat, names] of CATEGORIES) for (const name of names) {
   const grid = sections[cat].querySelector(".grid");
   const file = `hairline-${name}.html`, url = new URL(file, location.href).href, node = tpl.content.cloneNode(true);
-  const frame = node.querySelector("iframe");
-  frame.src = withTheme(file);
-  frame.title = `${name} figure, live`;
-  node.querySelector("h3").textContent = name;
+  const card = node.querySelector(".card"), live = node.querySelector(".live"), poster = node.querySelector(".poster");
+  live.dataset.file = file; live.dataset.title = `${label(name)} figure, live`;
+  poster.dataset.name = name; poster.src = posterSrc(name); poster.alt = `${label(name)} figure`;
+  node.querySelector("h3").textContent = label(name);
   node.querySelector("a").href = file;
   node.querySelector('[data-act="code"]').onclick = async () => {
-    try { copy(await (await fetch(file)).text(), `${name}: code copied`); }
+    try { copy(await (await fetch(file)).text(), `${label(name)}: code copied`); }
     catch { say("Couldn't load the file. Use Download instead."); }
   };
   node.querySelector('[data-act="embed"]').onclick = () =>
-    copy(`<iframe src="${url}" title="${name}" width="640" height="560" style="border:0" loading="lazy"></iframe>`, `${name}: embed copied`);
+    copy(`<iframe src="${url}" title="${label(name)}" width="640" height="560" style="border:0" loading="lazy"></iframe>`, `${label(name)}: embed copied`);
+  cards.push({ card, cat, keys: `${name} ${label(name)} ${cat} ${WORDS[name] || ""}`.toLowerCase() });
   grid.append(node);
+  wake(live);
 }
+
+// search: every word must appear in a figure's name, label, section or keywords
+const q = document.getElementById("q"), result = document.getElementById("result"), empty = document.getElementById("empty");
+function search() {
+  const words = q.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (!words.length) { for (const c of cards) c.card.hidden = false; for (const sec of Object.values(sections)) sec.querySelector(".count").textContent = `${sec.querySelectorAll(".card").length} figures`; result.textContent = ""; empty.hidden = true; show(current); return; }
+  let hits = 0;
+  for (const c of cards) { const ok = words.every((w) => c.keys.includes(w)); c.card.hidden = !ok; if (ok) hits++; }
+  for (const [cat, sec] of Object.entries(sections)) { const n = sec.querySelectorAll(".card:not([hidden])").length; sec.hidden = n === 0; sec.querySelector(".count").textContent = `${n} of ${sec.querySelectorAll(".card").length}`; }
+  for (const b of buttons) b.setAttribute("aria-pressed", String(b.dataset.cat === "All"));
+  result.textContent = hits ? `${hits} figure${hits === 1 ? "" : "s"} for “${q.value.trim()}”` : "";
+  empty.hidden = hits > 0;
+  document.getElementById("ask").onclick = () => { document.getElementById("idea").value = q.value.trim(); };
+}
+q.addEventListener("input", search);
+addEventListener("keydown", (e) => { if (e.key === "/" && document.activeElement.tagName !== "INPUT" && document.activeElement.tagName !== "TEXTAREA") { e.preventDefault(); q.focus(); document.getElementById("gallery").scrollIntoView(); } });
+q.addEventListener("keydown", (e) => { if (e.key === "Escape") { q.value = ""; search(); } });
+
+// use it: a snippet for each stack
+const BASE = "https://animatedsvg.vercel.app";
+const SNIPS = {
+  HTML: `<iframe src="${BASE}/hairline-gpu.html?theme=dark"
+  title="Graphics card" width="640" height="520"
+  style="border:0" loading="lazy"></iframe>`,
+  React: `function Figure({ name, theme, height = 520 }) {
+  const src = \`${BASE}/hairline-\${name}.html\${theme ? \`?theme=\${theme}\` : ""}\`;
+  return <iframe src={src} title={name} width="100%" height={height}
+    style={{ border: 0 }} loading="lazy" />;
+}
+
+// anywhere in your app
+<Figure name="rocket" theme="dark" />`,
+  "Next.js": `// app/components/Figure.tsx (a server component: no "use client" needed)
+export function Figure({ name, theme }: { name: string; theme?: "light" | "dark" }) {
+  const src = \`${BASE}/hairline-\${name}.html\${theme ? \`?theme=\${theme}\` : ""}\`;
+  return <iframe src={src} title={name} width="100%" height={520} style={{ border: 0 }} loading="lazy" />;
+}
+
+// app/not-found.tsx
+<Figure name="ghost" />`,
+  Vue: `<!-- Figure.vue -->
+<script setup>
+const props = defineProps({ name: String, theme: String });
+const src = \`${BASE}/hairline-\${props.name}.html\${props.theme ? \`?theme=\${props.theme}\` : ""}\`;
+<\/script>
+<template>
+  <iframe :src="src" :title="name" width="100%" height="520" style="border:0" loading="lazy" />
+</template>
+
+<!-- use it -->
+<Figure name="campfire" theme="light" />`,
+  Svelte: `<!-- Figure.svelte -->
+<script>
+  export let name; export let theme = "";
+  $: src = \`${BASE}/hairline-\${name}.html\${theme ? \`?theme=\${theme}\` : ""}\`;
+<\/script>
+<iframe {src} title={name} width="100%" height="520" style="border:0" loading="lazy"></iframe>`,
+  "WordPress · Webflow · Framer": `1. Add a "Custom HTML" block (WordPress), an "Embed" element
+   (Webflow) or an "Embed" component (Framer).
+2. Paste:
+
+<iframe src="${BASE}/hairline-coffee.html" title="Coffee"
+  width="100%" height="520" style="border:0" loading="lazy"></iframe>`,
+  "Self-host": `1. Press Download on any card. You get one file, e.g. hairline-gpu.html.
+2. Put it next to your site, e.g. /public/figures/hairline-gpu.html.
+3. Embed your own copy, with no request to this site:
+
+<iframe src="/figures/hairline-gpu.html" title="Graphics card"
+  width="100%" height="520" style="border:0" loading="lazy"></iframe>`,
+};
+const snipTabs = document.getElementById("snip-tabs"), snipCode = document.getElementById("snip-code");
+let snip = "HTML";
+const pick = (k) => { snip = k; snipCode.textContent = SNIPS[k]; for (const b of snipTabs.children) b.setAttribute("aria-selected", String(b.textContent === k)); };
+for (const k of Object.keys(SNIPS)) { const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "tab"); b.textContent = k; b.onclick = () => pick(k); snipTabs.append(b); }
+pick("HTML");
+document.getElementById("snip-copy").onclick = () => copy(SNIPS[snip], `${snip} snippet copied`);
+
+// examples: small pages built with the snippet, each showing the snippet it used
+const EXAMPLES = [
+  { url: "yoursite.com/missing-page", name: "ghost", title: "Page not found", text: "The page you're after has drifted off. Let's get you home.", btn: "Back to home" },
+  { url: "mail.yoursite.com/inbox", name: "envelope", title: "You're all caught up", text: "No new messages. Enjoy the quiet.", btn: "Compose" },
+  { url: "yourproduct.dev", name: "rocket", title: "Ship in minutes", text: "Deploy from your terminal and watch it go live.", btn: "Get started" },
+];
+const exBox = document.getElementById("examples");
+for (const e of EXAMPLES) {
+  const snippet = `<iframe src="${BASE}/hairline-${e.name}.html" title="${e.name}"\n  width="100%" height="300" style="border:0" loading="lazy"></iframe>\n<h3>${e.title}</h3>\n<p>${e.text}</p>\n<a class="btn">${e.btn}</a>`;
+  const el = document.createElement("div");
+  el.className = "example";
+  el.innerHTML = `<div class="bar"><i></i><i></i><i></i><span class="mono">${e.url}</span></div><div class="page"><iframe title="${e.title}: ${e.name} figure"></iframe><h3>${e.title}</h3><p>${e.text}</p><a class="btn primary" href="#gallery">${e.btn}</a></div><details><summary class="mono">The snippet</summary><pre><code></code></pre></details>`;
+  el.querySelector("code").textContent = snippet;
+  const f = el.querySelector("iframe"); f.dataset.file = `hairline-${e.name}.html`; watch(f);
+  exBox.append(el);
+}
+
+// suggest: the sections to choose from, and a thank-you once the form comes back
+const sel = document.getElementById("section");
+for (const [cat] of [...CATEGORIES, ["Something new"]]) { const o = document.createElement("option"); o.textContent = cat; sel.append(o); }
+document.getElementById("next").value = `${location.origin}${location.pathname}?sent=1#suggest`;
+if (new URLSearchParams(location.search).get("sent")) { say("Thanks! Your suggestion is on its way."); history.replaceState(null, "", location.pathname + "#suggest"); }
 </script>
 </body>
 </html>
