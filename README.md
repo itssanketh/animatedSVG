@@ -2,13 +2,13 @@
 
 # animatedSVG
 
-**Line animations that look back at your visitors.**
+**Line art that moves when you do.**
 
 Free, hand-built 3D line figures that react to the pointer. Each one is a single HTML file with no dependencies: copy it, embed it or download it, and it works on any website.
 
 [**Browse the gallery →**](https://animatedsvg.vercel.app)
 
-![55 figures](https://img.shields.io/badge/figures-55-232327?style=flat-square)
+![130 figures](https://img.shields.io/badge/figures-130-232327?style=flat-square)
 ![0 dependencies](https://img.shields.io/badge/dependencies-0-232327?style=flat-square)
 ![light and dark](https://img.shields.io/badge/themes-light%20%2B%20dark-232327?style=flat-square)
 [![MIT license](https://img.shields.io/badge/license-MIT-232327?style=flat-square)](LICENSE)
@@ -31,15 +31,28 @@ Every figure is an isometric line drawing that answers the pointer. A cat wakes 
 
 ## The gallery
 
+<a href="https://animatedsvg.vercel.app"><img src="gallery.png" alt="The animatedSVG gallery: the Logos section, with live line figures of Google, Vercel, GitHub, Git, Docker and Python" width="720"></a>
+
 | Section | Figures |
 |---|---|
 | **Animals** | cat · dog · hedgehog · turtle · birds · fish · frog |
 | **Tech** | laptop · speaker · ceiling (a rate limiter) |
-| **Objects** | book · gaze · surprise |
+| **Objects** | book · bookshelf · gaze · surprise |
 | **Marks** | Ubuntu · Debian · Fedora · Arch · Manjaro · NixOS · Zorin · Mint · Red Hat · Kali · openSUSE · Pop!_OS · elementary · Gentoo · EndeavourOS · CentOS · Rocky · Alma |
 | **Logos** | Google · Vercel · GitHub · Git · Docker · Python · React · Node.js · Rust · Kubernetes |
+| **Languages** | Java · C · C++ · C# · JavaScript · PHP · Go · Swift · Kotlin · HTML5 |
+| **Social** | Instagram · Facebook · Twitter · X · LinkedIn · YouTube · WhatsApp · TikTok · Reddit · Discord · Snapchat · Pinterest · Telegram |
+| **Dev brands** | VS Code · Figma · Slack · Notion · Spotify · npm · AWS · Firebase · PostgreSQL · Redis |
+| **Games** | game controller · Pac-Man ghost · Tetris · Minecraft block |
 | **AI** | Claude's spark · Clawd · the thinking spinner · terminal · tool loop · subagents · context window |
 | **Data structures** | stack · queue · linked list · binary search tree · min-heap · hash table · graph |
+| **Algorithms** | binary search · bubble sort · call stack · recursion tree · git branches · packet routing · CPU cache |
+| **Everyday** | desk lamp · coffee mug · envelope · wall clock · potted plant · keyboard |
+| **Music** | turntable · piano · metronome · cassette |
+| **Space** | rocket · ringed planet · satellite dish · moon phases |
+| **Weather** | rain cloud · sun · weathervane · umbrella |
+| **Dev tools** | server rack · database · CI pipeline · mouse |
+| **Anime** | One Piece: straw hat · Gum-Gum Fruit · Jolly Roger · Going Merry · Bleach: Hollow mask · Zangetsu · Senbonzakura · Sode no Shirayuki |
 
 Each figure has its own move. A few favourites:
 
@@ -119,4 +132,4 @@ Figures are written against Hairline's figure API: a `mount({ stage, svg, read }
 
 The code is under the [MIT License](LICENSE).
 
-The license covers the code only. The logos drawn in the Marks, Logos and AI sections (the Linux distributions, Google, GitHub, Git, Docker, Python, React, Node.js, Rust, Kubernetes, Vercel, Claude and others) are trademarks of their owners. They're drawn here as a tribute and are not licensed for reuse. animatedSVG is not affiliated with any of them.
+The license covers the code only. The logos drawn in the Marks, Logos, Languages, Social, Dev brands and AI sections (the Linux distributions, Google, GitHub, Git, Docker, Python, React, Node.js, Rust, Kubernetes, Vercel, Java, C++, C#, JavaScript, PHP, Go, Swift, Kotlin, HTML5, Instagram, Facebook, Twitter, X, LinkedIn, YouTube, WhatsApp, TikTok, Reddit, Discord, Snapchat, Pinterest, Telegram, VS Code, Figma, Slack, Notion, Spotify, npm, AWS, Firebase, PostgreSQL, Redis, Claude and others) are trademarks of their owners. They're drawn here as a tribute and are not licensed for reuse. animatedSVG is not affiliated with any of them.

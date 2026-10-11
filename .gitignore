@@ -4,3 +4,4 @@
 .vercel
 .env*
 !og.png
+!gallery.png

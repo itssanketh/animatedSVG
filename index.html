@@ -12,7 +12,7 @@
 <meta property="og:image" content="https://animatedsvg.vercel.app/og.png">
 <meta property="og:image:width" cont  exent="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="animatedSVG: a line-drawn cat beside the headline 'Line animations that look back at your visitors.'">
+<meta property="og:image:alt" content="animatedSVG: a line-drawn cat beside the headline 'Line art that moves when you do.'">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="animatedSVG">
 <meta name="twitter:description" content="Free, pointer-reactive SVG line animations for any website.">
@@ -20,6 +20,7 @@
 <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#08090a" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 22 L16 8 L28 22' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<script>/* light unless the visitor chose dark */ let t = "light"; try { if (localStorage.getItem("theme") === "dark") t = "dark"; } catch (e) {} document.documentElement.dataset.theme = t;</script>
 <style>
   :root { color-scheme: light; --ground: #ffffff; --raise: #f7f7f8; --ink: #232327; --muted: #6f6f78; --line: #e0e0e4; }
   @media (prefers-color-scheme: dark) {
@@ -66,6 +67,17 @@
   button:hover, .btn:hover { border-color: var(--ink); }
   .primary { background: var(--ink); color: var(--ground); border-color: var(--ink); }
   .links .btn { color: var(--ink); height: 32px; }
+  /* the theme switch: a slider in the figures' line. A plate of a track, and a knob that rolls along it: a sun in the
+     light, a black hole in the dark */
+  .mode { width: 60px; height: 32px; padding: 0; border: 0; background: none; display: block; color: var(--ink); cursor: pointer; border-radius: 16px; }
+  .mode:hover { border: 0; }
+  .mode:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .mode svg { width: 60px; height: 32px; display: block; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+  .mode .back { stroke: var(--muted); }
+  .mode .face { fill: var(--ground); }
+  .mode .side { fill: var(--ground); stroke: none; }
+  .mode .star { fill: currentColor; stroke: none; }
+  html.fading, html.fading * { transition: background-color .5s ease, border-color .5s ease, color .5s ease, fill .5s ease, stroke .5s ease !important; }
   :focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
 
   /* hero */
@@ -156,7 +168,14 @@
       <a href="#gallery">Gallery</a>
       <a href="#how">How it works</a>
       <a href="#about">About</a>
-      <a class="btn" href="https://github.com/sanketh908/animatedSVG" target="_blank" rel="noopener">GitHub</a>
+      <button class="mode" id="mode" type="button" role="switch" aria-checked="false" aria-label="Dark theme">
+        <svg viewBox="0 0 60 32" aria-hidden="true">
+          <path class="back" id="track-back"/><path class="face" id="track-face"/>
+          <g id="stars"></g><g id="clouds"></g>
+          <g id="knob"><circle class="back" id="knob-back" r="5.2"/><path class="side" id="knob-side"/><path id="disk-back"/><circle class="face" id="knob-face" r="5.2"/><path id="lens"/><path id="disk-front"/><g id="rays"></g></g>
+        </svg>
+      </button>
+      <a class="btn" href="https://github.com/itssanketh/animatedSVG" target="_blank" rel="noopener">GitHub</a>
     </div>
   </div>
 </nav>
@@ -165,7 +184,7 @@
   <div class="wrap">
     <div>
       <span class="eyebrow">Free interactive SVG animations</span>
-      <h1>Line animations that look back at your visitors.</h1>
+      <h1>Line art that moves when you do.</h1>
       <p class="lede">animatedSVG is a free library of hand-built 3D line figures that react to the pointer. Each one is a single HTML file with no dependencies. Copy it, embed it, or download it, and it works on any website.</p>
       <div class="cta">
         <a class="btn primary" href="#gallery">Browse the gallery</a>
@@ -174,7 +193,7 @@
       <div class="facts mono"><span id="count">12 figures</span><span>0 dependencies</span><span>light + dark</span><span>free to use</span></div>
     </div>
     <div class="stage">
-      <iframe src="hairline-cat.html" title="Live demo: a cat that wakes and watches the pointer"></iframe>
+      <iframe title="Live demo: a cat that wakes and watches the pointer"></iframe>
     </div>
   </div>
 </header>
@@ -249,7 +268,7 @@
         </ul>
         <div class="cta" style="margin-top:28px">
           <a class="btn" href="https://portfolio-v3-psi-neon.vercel.app" target="_blank" rel="noopener">Portfolio</a>
-          <a class="btn" href="https://github.com/sanketh908" target="_blank" rel="noopener">GitHub</a>
+          <a class="btn" href="https://github.com/itssanketh" target="_blank" rel="noopener">GitHub</a>
         </div>
       </div>
       <div class="contact">
@@ -286,17 +305,106 @@
 </template>
 
 <script>
+/* the theme switch: a slider drawn as the figures are, plates with a back edge and a side, moved by a spring. The knob
+   rolls along the track, its rays turning with it; going right they draw in, and a thin disk opens round it, its far
+   side bent over the top: a black hole. Clouds drift away ahead of it and stars come out behind. Going left, all of it
+   runs back. The page is light unless the visitor chose dark. */
+const root = document.documentElement;
+const isDark = () => root.dataset.theme === "dark";
+const withTheme = (file) => (root.dataset.theme ? `${file}?theme=${root.dataset.theme}` : file);
+(() => {
+  const btn = document.getElementById("mode"), $ = (id) => document.getElementById(id), NS = "http://www.w3.org/2000/svg";
+  const DX = -1.2, DY = 1.2, L = 16, R = 45, Y = 16, KR = 5.2, TILT = -0.32;
+  // the track: a pill plate, its back edge down and to the left, the side between
+  const pill = (x0, x1, y0, y1, ox = 0, oy = 0) => { const r = (y1 - y0) / 2; return `M${x0 + r + ox},${y0 + oy} H${x1 - r + ox} A${r},${r} 0 0 1 ${x1 - r + ox},${y1 + oy} H${x0 + r + ox} A${r},${r} 0 0 1 ${x0 + r + ox},${y0 + oy} Z`; };
+  $("track-face").setAttribute("d", pill(4, 57, 5, 27));
+  $("track-back").setAttribute("d", pill(4, 57, 5, 27, DX, DY));
+  const stars = [[12, 11, 0.9], [20, 21, 0.7], [27, 12.5, 0.6]].map(([x, y, r]) => { const c = document.createElementNS(NS, "circle"); c.setAttribute("class", "star"); c.setAttribute("cx", x); c.setAttribute("cy", y); c.dataset.r = r; return $("stars").appendChild(c); });
+  // clouds on the light side: a flat base and three bumps, scaled about their middle
+  const clouds = [[38, 11.5, 0.75], [48, 20, 0.95]].map(([x, y, s]) => { const c = document.createElementNS(NS, "path"); c.setAttribute("class", "face"); c.setAttribute("vector-effect", "non-scaling-stroke"); c.setAttribute("d", "M-4.6,1.7 H4.4 A1.75,1.75 0 0 0 4.3,-1.5 A2.5,2.5 0 0 0 -0.3,-2.7 A2.1,2.1 0 0 0 -4.6,1.7 Z"); c.dataset.x = x; c.dataset.y = y; c.dataset.s = s; return $("clouds").appendChild(c); });
+  const rays = Array.from({ length: 8 }, () => $("rays").appendChild(document.createElementNS(NS, "path")));
+  const smooth = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+  /** The disk's ellipse from parameter a to b, tilted, about the knob's middle; o is how far it has opened. */
+  const ellipse = (cx, a, b, o) => { const pts = []; for (let i = 0; i <= 24; i++) { const t = a + ((b - a) * i) / 24, ex = 8.8 * o * Math.cos(t), ey = 2.3 * o * Math.sin(t); pts.push(`${(cx + ex * Math.cos(TILT) - ey * Math.sin(TILT)).toFixed(2)},${(Y + ex * Math.sin(TILT) + ey * Math.cos(TILT)).toFixed(2)}`); } return "M" + pts.join(" L"); };
+  /** Draws the switch with the knob p of the way across, 0 light, 1 dark; p may overshoot a little on the spring. */
+  function draw(p) {
+    const cx = L + (R - L) * p, roll = ((R - L) * p) / KR, sun = 1 - smooth(0.1, 0.55, p), hole = smooth(0.45, 0.95, p);
+    $("knob-face").setAttribute("cx", cx.toFixed(2)); $("knob-face").setAttribute("cy", Y);
+    $("knob-back").setAttribute("cx", (cx + DX).toFixed(2)); $("knob-back").setAttribute("cy", Y + DY);
+    $("knob-side").setAttribute("d", `M${cx - KR * Math.SQRT1_2},${Y - KR * Math.SQRT1_2} L${cx - KR * Math.SQRT1_2 + DX},${Y - KR * Math.SQRT1_2 + DY} L${cx + KR * Math.SQRT1_2 + DX},${Y + KR * Math.SQRT1_2 + DY} L${cx + KR * Math.SQRT1_2},${Y + KR * Math.SQRT1_2} Z`);
+    // the sun's rays, turning as the knob rolls, drawing in as it goes dark
+    rays.forEach((l, k) => { const a = (k / 8) * 2 * Math.PI + roll, r0 = KR + 1.4, r1 = r0 + 2.2 * sun; l.setAttribute("d", sun < 0.02 ? "" : `M${(cx + r0 * Math.cos(a)).toFixed(2)},${(Y + r0 * Math.sin(a)).toFixed(2)} L${(cx + r1 * Math.cos(a)).toFixed(2)},${(Y + r1 * Math.sin(a)).toFixed(2)}`); });
+    // the black hole: its disk opening out, the back half behind the knob, the front half over it, and the lensed arc
+    $("disk-back").setAttribute("d", hole < 0.02 ? "" : ellipse(cx, Math.PI, 2 * Math.PI, hole));
+    $("disk-front").setAttribute("d", hole < 0.02 ? "" : ellipse(cx, 0, Math.PI, hole));
+    const lr = KR + 1.1, h = 1.2 * hole, m = TILT - Math.PI / 2;
+    $("lens").setAttribute("d", hole < 0.02 ? "" : `M${(cx + lr * Math.cos(m - h)).toFixed(2)},${(Y + lr * Math.sin(m - h)).toFixed(2)} A${lr},${lr} 0 0 1 ${(cx + lr * Math.cos(m + h)).toFixed(2)},${(Y + lr * Math.sin(m + h)).toFixed(2)}`);
+    $("knob-face").setAttribute("r", (KR - 1.1 * hole).toFixed(2));
+    // the clouds drift on ahead of the knob and shrink away as it goes dark; the nearer one first
+    clouds.forEach((c, k) => { const g = 1 - smooth(0.05 + k * 0.15, 0.45 + k * 0.15, p), dx = 3.5 * (1 - g) + 0.6 * p; c.setAttribute("transform", `translate(${(+c.dataset.x + dx).toFixed(2)} ${c.dataset.y}) scale(${(c.dataset.s * g).toFixed(3)})`); c.style.display = g < 0.02 ? "none" : ""; });
+    stars.forEach((c, k) => c.setAttribute("r", (c.dataset.r * smooth(0.55 + k * 0.12, 0.85 + k * 0.05, p)).toFixed(2)));
+  }
+  // the knob's place, on a spring that overshoots a little and settles, as the figures move
+  let x = isDark() ? 1 : 0, v = 0, goal = x, last = 0, raf = 0, hover = false;
+  const target = () => goal + (hover ? (goal ? -0.07 : 0.07) : 0);
+  function step(now) {
+    const dt = Math.min(0.034, (now - (last || now)) / 1000); last = now;
+    for (let i = 0; i < 4; i++) { const a = 170 * (target() - x) - 19 * v; v += (a * dt) / 4; x += (v * dt) / 4; }
+    draw(x);
+    if (Math.abs(target() - x) < 0.0005 && Math.abs(v) < 0.001) { x = target(); draw(x); raf = 0; last = 0; return; }
+    raf = requestAnimationFrame(step);
+  }
+  const go = () => { if (matchMedia("(prefers-reduced-motion: reduce)").matches) { x = target(); v = 0; draw(x); return; } if (!raf) raf = requestAnimationFrame(step); };
+  draw(x);
+  const label = () => { btn.setAttribute("aria-checked", String(isDark())); };
+  label();
+  btn.addEventListener("pointerenter", () => { hover = true; go(); });
+  btn.addEventListener("pointerleave", () => { hover = false; go(); });
+  // every live figure follows the page: pressing its own switch where the browser lets us reach in, reloading it otherwise
+  function syncFigures(mode) {
+    for (const f of document.querySelectorAll("iframe")) {
+      if (!f.getAttribute("src")) continue;
+      let done = false;
+      try { const d = f.contentDocument, own = d && d.getElementById("theme"); if (own) { const dark = d.documentElement.dataset.theme ? d.documentElement.dataset.theme === "dark" : f.contentWindow.matchMedia("(prefers-color-scheme: dark)").matches; if (dark !== (mode === "dark")) own.click(); done = true; } } catch (e) {}
+      if (!done) f.src = `${f.getAttribute("src").split("?")[0]}?theme=${mode}`;
+    }
+  }
+  function setMode(mode, save) {
+    root.classList.add("fading");
+    root.dataset.theme = mode;
+    if (save) try { localStorage.setItem("theme", mode); } catch (e) {}
+    setTimeout(() => root.classList.remove("fading"), 600);
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute("content", mode === "dark" ? "#08090a" : "#ffffff"));
+    goal = mode === "dark" ? 1 : 0; label(); go(); syncFigures(mode);
+  }
+  btn.addEventListener("click", () => setMode(isDark() ? "light" : "dark", true));
+})();
+
+// the cat at the top starts in the page's theme too
+document.querySelector(".stage iframe").src = withTheme("hairline-cat.html");
+
 const CATEGORIES = [
   ["Animals", ["cat", "dog", "hedgehog", "turtle", "birds", "fish", "frog"]],
   ["Tech", ["laptop", "speaker", "ceiling"]],
-  ["Objects", ["book", "gaze", "surprise"]],
+  ["Objects", ["book", "bookshelf", "gaze", "surprise"]],
   ["Marks", ["ubuntu", "debian", "fedora", "arch", "manjaro", "nixos", "zorin", "mint", "redhat", "kali", "opensuse", "popos", "elementary", "gentoo", "endeavour", "centos", "rocky", "alma"]],
   ["Logos", ["google", "vercel", "github", "git", "docker", "python", "react", "nodejs", "rust", "kubernetes"]],
+  ["Languages", ["java", "clang", "cplusplus", "csharp", "javascript", "php", "golang", "swift", "kotlin", "html"]],
+  ["Social", ["instagram", "facebook", "twitter", "x-logo", "linkedin", "youtube", "whatsapp", "tiktok", "reddit", "discord", "snapchat", "pinterest", "telegram"]],
+  ["Dev brands", ["vscode", "figma", "slack", "notion", "spotify", "npm", "aws", "firebase", "postgres", "redis"]],
+  ["Games", ["gamepad", "ghost", "tetris", "minecraft"]],
   ["AI", ["spark", "clawd", "spinner", "terminal", "toolloop", "subagents", "context"]],
+  ["Algorithms", ["binsearch", "sort", "callstack", "recursion", "branches", "routing", "cache"]],
   ["Data structures", ["stack", "queue", "linkedlist", "tree", "heap", "hashtable", "graph"]],
+  ["Everyday", ["lamp", "mug", "envelope", "clock", "plant", "keyboard"]],
+  ["Music", ["turntable", "piano", "metronome", "cassette"]],
+  ["Space", ["rocket", "planet", "dish", "moon"]],
+  ["Weather", ["cloud", "sun", "weathervane", "umbrella"]],
+  ["Dev tools", ["rack", "database", "pipeline", "mouse"]],
+  ["Anime", ["strawhat", "devilfruit", "jollyroger", "merry", "hollowmask", "zangetsu", "senbonzakura", "shirayuki"]],
 ];
 // shown under a category's heading
-const NOTES = { Marks: "Linux distribution logos, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them.", Logos: "Company and project logos, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them.", AI: "A tribute to Claude and Claude Code. The spark and Clawd belong to Anthropic; animatedSVG is not affiliated with Anthropic." };
+const NOTES = { Marks: "Linux distribution logos, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them.", Logos: "Company and project logos, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them.", Anime: "Fan tributes drawn with the motion techniques of anime: flowing cloth, twist lines, speed and swing lines. The series and their marks belong to their creators; animatedSVG is not affiliated with them.", Languages: "Programming language logos, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them.", Social: "Social media logos, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them.", "Dev brands": "Logos of tools developers use every day, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them.", AI: "A tribute to Claude and Claude Code. The spark and Clawd belong to Anthropic; animatedSVG is not affiliated with Anthropic." };
 const FIGURES = CATEGORIES.flatMap(([, names]) => names);
 document.getElementById("count").textContent = `${FIGURES.length} figures`;
 
@@ -335,7 +443,7 @@ for (const [cat, names] of CATEGORIES) for (const name of names) {
   const grid = sections[cat].querySelector(".grid");
   const file = `hairline-${name}.html`, url = new URL(file, location.href).href, node = tpl.content.cloneNode(true);
   const frame = node.querySelector("iframe");
-  frame.src = file;
+  frame.src = withTheme(file);
   frame.title = `${name} figure, live`;
   node.querySelector("h3").textContent = name;
   node.querySelector("a").href = file;

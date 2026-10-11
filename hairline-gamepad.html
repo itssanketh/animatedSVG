@@ -1,0 +1,838 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hairline figure</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { color-scheme: light; --ground: #ffffff; --ink: #232327; --muted: #6f6f78; --line: #e0e0e4; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { color-scheme: dark; --ground: #08090a; --ink: #d0d6e0; --muted: #8a8c95; --line: #29292d; }
+  }
+  :root[data-theme="dark"] { color-scheme: dark; --ground: #08090a; --ink: #d0d6e0; --muted: #8a8c95; --line: #29292d; }
+  :root[data-theme="light"] { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
+    background: var(--ground); color: var(--ink);
+    font: 13px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased;
+  }
+  main { width: 100%; max-width: 640px; }
+  .plate { position: relative; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .tag, .label, output, button { font: 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.02em; }
+  .tag { position: absolute; top: 12px; z-index: 1; color: var(--muted); pointer-events: none; }
+  #name { left: 14px; }
+  #read { right: 14px; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 14px; }
+  .label { color: var(--muted); }
+  input[type="range"] {
+    flex: 1 1 96px; min-width: 0; height: 32px; margin: 0; background: transparent; cursor: pointer;
+    -webkit-appearance: none; appearance: none;
+  }
+  input[type="range"]::-webkit-slider-runnable-track { height: 1px; background: var(--muted); }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 13px; height: 13px; margin-top: -6px; border-radius: 50%;
+    border: 1px solid var(--ink); background: var(--ground);
+  }
+  input[type="range"]::-moz-range-track { height: 1px; background: var(--muted); }
+  input[type="range"]::-moz-range-thumb { width: 11px; height: 11px; border-radius: 50%; border: 1px solid var(--ink); background: var(--ground); }
+  input[type="range"]:focus-visible, button:focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+  output { min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; }
+  button {
+    height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: transparent; color: var(--ink); cursor: pointer;
+  }
+  #means { margin: 14px 0 0; text-wrap: pretty; }
+  #rules { margin: 6px 0 0; line-height: 1.6; }
+  #error { margin: 12px 0 0; padding-left: 10px; border-left: 1px solid var(--ink); }
+</style>
+</head>
+<body>
+<main>
+  <div class="plate">
+    <span class="tag" id="name"></span>
+    <span class="tag" id="read"></span>
+    <div id="stage"></div>
+  </div>
+  <div class="controls">
+    <label class="label" for="intensity">intensity</label>
+    <input id="intensity" type="range" min="0" max="1" step="0.01" value="0.5">
+    <output id="value" for="intensity"></output>
+    <span class="label">theme</span>
+    <button id="theme" type="button" aria-label="Switch between the light and the dark theme"></button>
+  </div>
+  <p id="means"></p>
+  <p id="rules" class="label"></p>
+  <p id="error" role="alert" hidden></p>
+</main>
+<script id="hl-kernel">
+/* hairline kernel sha256:8e2abcbdf63c7755195ee942c39e9c8ea6a539d1147e986dd1c153559121f075 */
+/*
+ * HL: everything a figure may call. Read this index; the code under it is the
+ * package's src/core, unchanged, and a figure should not need to read it.
+ *
+ * Every figure is drawn in a 400 × 320 viewBox. World space is x/y on the
+ * ground and z up. Plates are filled with the ground colour and painted back
+ * to front, so a nearer one covers a farther one: append in that order. At
+ * the default camera, Cam(45, 0.5, S), +x runs down to the right and +y down
+ * to the left, so the corner with the largest x and y is nearest the viewer:
+ * append by ascending x + y, from the far corner (smallest x and y) to it.
+ *
+ * Camera
+ *   Cam(azDeg, k, S)                       a camera: azimuth in degrees, k = sin(elevation) (0.5 is the 2:1 view), S = scale
+ *   fit(C, points, cx, cy)                 centres the box of [x, y, z] points on (cx, cy); call it once, before proj
+ *                                          it only centres, it never scales: choose S by trying values, with the most extreme pose in points.
+ *                                          The six figures use S 1.42 to 2.12; the boxes they fit come out 230 to 310 wide and 180 to 245 tall
+ *   proj(C)                                returns P(x, y, z), which gives [sx, sy]
+ *   unproj(C, sx, sy, z)                   the world [x, y] under a screen point, on the plane at height z
+ *   facing(C)                              returns front(sample): whether a ring sample faces the camera
+ * Rounded solids
+ *   rrect(u0, v0, u1, v1, r, n)            a rounded rectangle, as a ring of samples {u, v, nu, nv}
+ *   circ(R, n)                             a circle, as a ring
+ *   rings(x0, y0, x1, y1, r, b)            [ring, inner]: a rounded footprint and its crease ring, inset by b
+ *                                          r, the corner radius, is cut to half the shorter side. b, the crease's inset in world units
+ *                                          (0.6 to 2.2 in the figures), must stay under half the shorter side or the crease turns inside out
+ *   prism(P, front, ring, inner, z0, z1)   {sil, crease}: a solid standing from z0 to z1, as two path strings
+ *   ringAt(P, ring, z)                     the ring's points, projected at height z
+ *   run(ring, keep)                        the one cyclic run of samples that pass keep
+ *   hull(points)                           the convex hull of screen points
+ *   extremes(P, ring)                      [left, right, nearest] samples: where dashed drops fall from
+ *   fillet(points, radii, n)               rounds every vertex of a closed polygon; returns the new points
+ *                                          radii is an array, one radius per vertex, each cut to half its shorter edge; a single number gives NaN.
+ *                                          n is the steps round each corner, default 4: each vertex becomes n + 1 points
+ *   ghost(P, front, ring, z0, depth)       a reflection's path {d, y0, y1}; reflect() draws it for you
+ * Paths and numbers
+ *   poly(points)                           a closed path string
+ *   open(points)                           an open polyline string
+ *   seg(a, b)                              one segment between two screen points [sx, sy], as its own subpath; project world points with P first
+ *   clamp(v, a, b)
+ *   lerp(a, b, t)
+ *   rad(deg)
+ *   r2(n)                                  two decimals
+ * The continuous clock: one spring per moving number
+ *   spring(x, opts)                        at rest on x; write .t to retarget; opts {k, c, m, eps}, default k 100, c 18, m 1
+ *   stepS(sp, dt)                          advances by dt seconds; returns whether it is still moving
+ * The discrete clock: a 700ms tween on (.32, .72, 0, 1)
+ *   tween(v, dur)                          at rest on v; dur defaults to 700 (ms)
+ *   tset(tw, to, now, delay)               retargets from where it is, after delay ms: the stagger
+ *                                          the same target again does nothing, so calling it on every pointer move is safe
+ *   tval(tw, now)                          its value at now
+ *   tdone(tw, now)                         whether it has landed
+ *   bezier(x1, y1, x2, y2)                 a CSS cubic-bezier, as a function of progress
+ *   EASE_LIFT                              the lift curve itself
+ *   reducedMotion()                        true when the reader asked for less motion; springs and tweens already land at once
+ *   setReducedMotion(on)                   the loop's business, not a figure's
+ * Drawing
+ *   mk(tag, attrs, parent)                 one svg element: the only way a figure makes a node
+ *   solid(parent)                          {g, sil, cr}: a group holding a silhouette path and a crease path
+ *   put(solid, paths)                      writes prism()'s {sil, crease} into solid()'s {sil, cr}: sil into sil, crease into cr
+ *   flatDot(parent, C, r, cls)             a dot lying on the ground plane; cls is "dot", "dot m" or "dot off"
+ *   place(el, point)                       moves a dot or a circle to [sx, sy]
+ *   reflect(svg, parent, P, front, ring, z0, depth)   a fading mirror under a solid
+ *   fade(svg, y0, y1, a0)                  a vertical fade, as a mask; returns the value for a mask attribute
+ * Life
+ *   register(stage, tick)                  joins the one frame loop; tick(dt in seconds, now in ms) returns true to ask for another frame; gives {wake, unregister}
+ *   pointer(stage, handlers)               {move(point), down(point), leave()}, points in viewBox units; returns its disposer
+ *   disposer()                             {add, on, dispose}: collects tear-down, so destroy is bag.dispose
+ * The bench's business, not a figure's
+ *   css(lightDark)
+ *   inject(root)
+ *
+ * Classes, on path, polygon, ellipse and line. They are the whole palette; a
+ * figure sets no colour, width or fill of its own.
+ *     (none)   filled with the ground colour, medium stroke
+ *     sil      the silhouette's stroke        hi    the bright stroke: the only highlight
+ *     lo       the dim stroke                 nf    no fill        fo   fill only, no stroke
+ *     dash     a dashed guide
+ *     dot      a bright dot                   dot m   a medium dot     dot off   a dim dot
+ */
+var HL = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // packages/hairline/src/core/kernel.ts
+  var kernel_exports = {};
+  __export(kernel_exports, {
+    Cam: () => Cam,
+    EASE_LIFT: () => EASE_LIFT,
+    bezier: () => bezier,
+    circ: () => circ,
+    clamp: () => clamp,
+    css: () => css,
+    disposer: () => disposer,
+    extremes: () => extremes,
+    facing: () => facing,
+    fade: () => fade,
+    fillet: () => fillet,
+    fit: () => fit,
+    flatDot: () => flatDot,
+    ghost: () => ghost,
+    hull: () => hull,
+    inject: () => inject,
+    lerp: () => lerp,
+    mk: () => mk,
+    open: () => open,
+    place: () => place,
+    pointer: () => pointer,
+    poly: () => poly,
+    prism: () => prism,
+    proj: () => proj,
+    put: () => put,
+    r2: () => r2,
+    rad: () => rad,
+    reducedMotion: () => reducedMotion,
+    reflect: () => reflect,
+    register: () => register,
+    ringAt: () => ringAt,
+    rings: () => rings,
+    rrect: () => rrect,
+    run: () => run,
+    seg: () => seg,
+    setReducedMotion: () => setReducedMotion,
+    solid: () => solid,
+    spring: () => spring,
+    stepS: () => stepS,
+    tdone: () => tdone,
+    tset: () => tset,
+    tval: () => tval,
+    tween: () => tween,
+    unproj: () => unproj
+  });
+
+  // packages/hairline/src/core/iso.ts
+  var clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  var lerp = (a, b, t) => a + (b - a) * t;
+  var rad = (d) => d * Math.PI / 180;
+  var r2 = (n) => Math.round(n * 100) / 100;
+  var poly = (pts) => "M" + pts.map((p) => r2(p[0]) + " " + r2(p[1])).join("L") + "Z";
+  var seg = (a, b) => `M${r2(a[0])} ${r2(a[1])}L${r2(b[0])} ${r2(b[1])}`;
+  var open = (pts) => pts.length < 2 ? "" : "M" + pts.map((p) => r2(p[0]) + " " + r2(p[1])).join("L");
+  var Cam = (azDeg, k, S) => ({ az: rad(azDeg), k, S, ox: 0, oy: 0 });
+  function proj(C) {
+    const c = Math.cos(C.az), s = Math.sin(C.az), zf = Math.sqrt(1 - C.k * C.k);
+    return (x, y, z) => {
+      const X = x * c - y * s, Y = x * s + y * c;
+      return [C.ox + C.S * X, C.oy + C.S * (Y * C.k - z * zf)];
+    };
+  }
+  function unproj(C, sx, sy, z) {
+    const c = Math.cos(C.az), s = Math.sin(C.az), zf = Math.sqrt(1 - C.k * C.k);
+    const X = (sx - C.ox) / C.S, Y = ((sy - C.oy) / C.S + z * zf) / C.k;
+    return [X * c + Y * s, -X * s + Y * c];
+  }
+  function fit(C, pts, cx, cy) {
+    C.ox = 0;
+    C.oy = 0;
+    const P = proj(C);
+    let a = 1e9, b = -1e9, c = 1e9, d = -1e9;
+    for (const p of pts) {
+      const q = P(p[0], p[1], p[2]);
+      a = Math.min(a, q[0]);
+      b = Math.max(b, q[0]);
+      c = Math.min(c, q[1]);
+      d = Math.max(d, q[1]);
+    }
+    C.ox = cx - (a + b) / 2;
+    C.oy = cy - (c + d) / 2;
+  }
+  function rrect(u0, v0, u1, v1, r, n = 4) {
+    r = Math.max(0, Math.min(r, (u1 - u0) / 2, (v1 - v0) / 2));
+    const out = [];
+    for (const [cu, cv, a0] of [[u1 - r, v1 - r, 0], [u0 + r, v1 - r, 90], [u0 + r, v0 + r, 180], [u1 - r, v0 + r, 270]])
+      for (let k = 0; k <= n; k++) {
+        const a = rad(a0 + 90 * k / n), ca = Math.cos(a), sa = Math.sin(a);
+        out.push({ u: cu + r * ca, v: cv + r * sa, nu: ca, nv: sa });
+      }
+    return out;
+  }
+  function circ(R, n = 96) {
+    const out = [];
+    for (let k = 0; k < n; k++) {
+      const a = k / n * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+      out.push({ u: R * ca, v: R * sa, nu: ca, nv: sa });
+    }
+    return out;
+  }
+  function hull(input) {
+    const pts = input.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    const x = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+    const lo = [], up = [];
+    for (const p of pts) {
+      while (lo.length > 1 && x(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop();
+      lo.push(p);
+    }
+    for (let i = pts.length - 1; i >= 0; i--) {
+      const p = pts[i];
+      while (up.length > 1 && x(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop();
+      up.push(p);
+    }
+    lo.pop();
+    up.pop();
+    return lo.concat(up);
+  }
+  var ringAt = (P, ring, z) => ring.map((q) => P(q.u, q.v, z));
+  var facing = (C) => {
+    const s = Math.sin(C.az), c = Math.cos(C.az);
+    return (q) => q.nu * s + q.nv * c >= -1e-6;
+  };
+  function run(ring, keep) {
+    const n = ring.length;
+    let s = -1;
+    for (let i = 0; i < n; i++) if (keep(ring[i]) && !keep(ring[(i + n - 1) % n])) {
+      s = i;
+      break;
+    }
+    if (s < 0) return keep(ring[0]) ? ring.slice() : [];
+    const out = [];
+    for (let k = 0; k < n && keep(ring[(s + k) % n]); k++) out.push(ring[(s + k) % n]);
+    return out;
+  }
+  function prism(P, front, ring, inner, z0, z1) {
+    return {
+      sil: poly(hull(ringAt(P, ring, z1).concat(ringAt(P, ring, z0)))),
+      crease: inner ? open(ringAt(P, run(inner, front), z1)) : ""
+    };
+  }
+  var rings = (x0, y0, x1, y1, r, b) => [
+    rrect(x0, y0, x1, y1, r),
+    rrect(x0 + b, y0 + b, x1 - b, y1 - b, Math.max(0.3, r - b))
+  ];
+  function extremes(P, ring) {
+    const pr = ring.map((q) => P(q.u, q.v, 0));
+    let a = 0, b = 0, c = 0;
+    pr.forEach((p, k) => {
+      if (p[0] < pr[a][0]) a = k;
+      if (p[0] > pr[b][0]) b = k;
+      if (p[1] > pr[c][1]) c = k;
+    });
+    return [ring[a], ring[b], ring[c]];
+  }
+  function fillet(pts, rs, n = 4) {
+    const m = pts.length, out = [];
+    for (let i = 0; i < m; i++) {
+      const a = pts[(i + m - 1) % m], p = pts[i], b = pts[(i + 1) % m];
+      const la = Math.hypot(a[0] - p[0], a[1] - p[1]), lb = Math.hypot(b[0] - p[0], b[1] - p[1]);
+      const t = Math.min(rs[i], la / 2, lb / 2);
+      const p1 = [p[0] + (a[0] - p[0]) / la * t, p[1] + (a[1] - p[1]) / la * t];
+      const p2 = [p[0] + (b[0] - p[0]) / lb * t, p[1] + (b[1] - p[1]) / lb * t];
+      for (let k = 0; k <= n; k++) {
+        const s = k / n, w = 1 - s;
+        out.push([w * w * p1[0] + 2 * w * s * p[0] + s * s * p2[0], w * w * p1[1] + 2 * w * s * p[1] + s * s * p2[1]]);
+      }
+    }
+    return out;
+  }
+  function ghost(P, front, ring, z0, depth) {
+    const f = run(ring, front), lowP = ringAt(P, f, z0 - depth);
+    return {
+      d: open(lowP) + [f[0], f[f.length - 1]].map((q) => seg(P(q.u, q.v, z0), P(q.u, q.v, z0 - depth))).join(""),
+      y0: Math.min(...ringAt(P, f, z0).map((p) => p[1])),
+      y1: Math.max(...lowP.map((p) => p[1])) + 2
+    };
+  }
+
+  // packages/hairline/src/core/motion.ts
+  var reduced = false;
+  var setReducedMotion = (on) => {
+    reduced = on;
+  };
+  var reducedMotion = () => reduced;
+  function spring(x, o = {}) {
+    return { x, v: 0, t: x, k: o.k ?? 100, c: o.c ?? 18, m: o.m ?? 1, eps: o.eps ?? 0.01 };
+  }
+  function stepS(sp, dt) {
+    if (reduced) {
+      sp.x = sp.t;
+      sp.v = 0;
+      return false;
+    }
+    const n = Math.max(1, Math.ceil(dt * 240)), h = dt / n;
+    for (let i = 0; i < n; i++) {
+      const a = (-sp.k * (sp.x - sp.t) - sp.c * sp.v) / sp.m;
+      sp.v += a * h;
+      sp.x += sp.v * h;
+    }
+    if (Math.abs(sp.x - sp.t) < sp.eps && Math.abs(sp.v) < sp.eps * 10) {
+      sp.x = sp.t;
+      sp.v = 0;
+      return false;
+    }
+    return true;
+  }
+  function bezier(x1, y1, x2, y2) {
+    const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+    const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+    const X = (u) => ((ax * u + bx) * u + cx) * u;
+    const Y = (u) => ((ay * u + by) * u + cy) * u;
+    const dX = (u) => (3 * ax * u + 2 * bx) * u + cx;
+    return (t) => {
+      if (t <= 0) return 0;
+      if (t >= 1) return 1;
+      let u = t;
+      for (let i = 0; i < 8; i++) {
+        const e = X(u) - t;
+        if (Math.abs(e) < 1e-5) break;
+        const d = dX(u);
+        if (Math.abs(d) < 1e-6) break;
+        u -= e / d;
+      }
+      if (!(u >= 0 && u <= 1) || Math.abs(X(u) - t) > 1e-4) {
+        let lo = 0, hi = 1;
+        u = t;
+        for (let i = 0; i < 24; i++) {
+          if (X(u) < t) lo = u;
+          else hi = u;
+          u = (lo + hi) / 2;
+        }
+      }
+      return Y(u);
+    };
+  }
+  var EASE_LIFT = bezier(0.32, 0.72, 0, 1);
+  var tween = (v, dur = 700) => ({ from: v, to: v, t0: -1e9, dur });
+  var tval = (tw, now) => {
+    const p = clamp((now - tw.t0) / tw.dur, 0, 1);
+    return tw.from + (tw.to - tw.from) * (reduced ? 1 : EASE_LIFT(p));
+  };
+  var tset = (tw, to, now, delay) => {
+    if (tw.to === to) return;
+    tw.from = tval(tw, now);
+    tw.to = to;
+    tw.t0 = now + delay;
+  };
+  var tdone = (tw, now) => reduced || now >= tw.t0 + tw.dur;
+
+  // packages/hairline/src/core/stage.ts
+  var NS = "http://www.w3.org/2000/svg";
+  function mk(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    if (attrs) for (const k in attrs) e.setAttribute(k, String(attrs[k]));
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function solid(parent) {
+    const g = mk("g", {}, parent);
+    return { g, sil: mk("path", { class: "sil" }, g), cr: mk("path", { class: "nf lo" }, g) };
+  }
+  var put = (el, s) => {
+    el.sil.setAttribute("d", s.sil);
+    el.cr.setAttribute("d", s.crease);
+  };
+  var flatDot = (parent, C, r, cls) => mk("ellipse", { rx: r2(r * C.S), ry: r2(r * C.S * C.k), class: cls }, parent);
+  var place = (el, q) => {
+    el.setAttribute("cx", String(r2(q[0])));
+    el.setAttribute("cy", String(r2(q[1])));
+  };
+  var fid = 0;
+  function fade(svg, y0, y1, a0 = 0.7) {
+    const id = "hl-fd" + ++fid, defs = mk("defs", {}, svg);
+    const lg = mk("linearGradient", { id: id + "g", gradientUnits: "userSpaceOnUse", x1: 0, y1: r2(y0), x2: 0, y2: r2(y1) }, defs);
+    mk("stop", { offset: 0, "stop-color": "#fff", "stop-opacity": a0 }, lg);
+    mk("stop", { offset: 1, "stop-color": "#fff", "stop-opacity": 0 }, lg);
+    const m = mk("mask", { id, maskUnits: "userSpaceOnUse", x: 0, y: 0, width: 400, height: 320 }, defs);
+    mk("rect", { x: 0, y: 0, width: 400, height: 320, fill: `url(#${id}g)` }, m);
+    return `url(#${id})`;
+  }
+  function reflect(svg, parent, P, front, ring, z0, depth) {
+    const r = ghost(P, front, ring, z0, depth);
+    const gh = mk("g", { class: "ghost", mask: fade(svg, r.y0, r.y1) }, parent);
+    mk("path", { d: r.d }, gh);
+  }
+  var boards = [];
+  var byStage = /* @__PURE__ */ new Map();
+  var raf = 0;
+  var last = 0;
+  var io = null;
+  var rm = null;
+  function frame(now) {
+    const dt = Math.min(0.05, Math.max(0, (now - last) / 1e3));
+    last = now;
+    let any = false;
+    for (const b of boards.slice()) if (b.vis && b.awake) {
+      b.awake = !!b.tick(dt, now);
+      any = any || b.awake;
+    }
+    raf = any ? requestAnimationFrame(frame) : 0;
+  }
+  function wake(b) {
+    b.awake = true;
+    if (!raf) {
+      last = performance.now();
+      raf = requestAnimationFrame(frame);
+    }
+  }
+  var onMotion = () => {
+    setReducedMotion(!!rm?.matches);
+    boards.forEach(wake);
+  };
+  function start() {
+    if (io) return;
+    io = new IntersectionObserver((es) => {
+      for (const e of es) {
+        const b = byStage.get(e.target);
+        if (!b) continue;
+        b.vis = e.isIntersecting;
+        if (b.vis) wake(b);
+      }
+    }, { rootMargin: "80px" });
+    rm = matchMedia("(prefers-reduced-motion: reduce)");
+    setReducedMotion(rm.matches);
+    rm.addEventListener("change", onMotion);
+  }
+  function stop() {
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    io?.disconnect();
+    io = null;
+    rm?.removeEventListener("change", onMotion);
+    rm = null;
+  }
+  function register(stage, tick) {
+    start();
+    const b = { stage, tick, vis: false, awake: true };
+    boards.push(b);
+    byStage.set(stage, b);
+    io.observe(stage);
+    tick(0, performance.now());
+    let gone = false;
+    return {
+      wake: () => {
+        if (!gone) wake(b);
+      },
+      unregister: () => {
+        if (gone) return;
+        gone = true;
+        boards = boards.filter((x) => x !== b);
+        if (byStage.get(stage) === b) {
+          byStage.delete(stage);
+          io?.unobserve(stage);
+        }
+        if (!boards.length) stop();
+      }
+    };
+  }
+  function pointer(stage, on) {
+    let tm = 0;
+    const pt = (e) => {
+      const r = stage.getBoundingClientRect();
+      return [(e.clientX - r.left) / r.width * 400, (e.clientY - r.top) / r.height * 320];
+    };
+    const move = (e) => {
+      clearTimeout(tm);
+      on.move(pt(e), e);
+    };
+    const down = (e) => {
+      clearTimeout(tm);
+      if (e.pointerType !== "mouse") stage.releasePointerCapture?.(e.pointerId);
+      if (on.down) on.down(pt(e), e);
+      else on.move(pt(e), e);
+    };
+    const leave = (e) => {
+      clearTimeout(tm);
+      tm = window.setTimeout(() => on.leave(e), e.pointerType === "mouse" ? 0 : 1400);
+    };
+    stage.addEventListener("pointermove", move);
+    stage.addEventListener("pointerdown", down);
+    stage.addEventListener("pointerleave", leave);
+    return () => {
+      clearTimeout(tm);
+      stage.removeEventListener("pointermove", move);
+      stage.removeEventListener("pointerdown", down);
+      stage.removeEventListener("pointerleave", leave);
+    };
+  }
+  function disposer() {
+    let fns = [];
+    return {
+      add: (fn) => {
+        fns.push(fn);
+      },
+      on: (target, type, fn, opts) => {
+        const h = fn;
+        target.addEventListener(type, h, opts);
+        fns.push(() => target.removeEventListener(type, h, opts));
+      },
+      dispose: () => {
+        const run2 = fns;
+        fns = [];
+        for (let i = run2.length - 1; i >= 0; i--) run2[i]();
+      }
+    };
+  }
+
+  // packages/hairline/src/core/styles.ts
+  var LIGHT = { plate: "#ffffff", hi: "#232327", edge: "#a4a4ac", mid: "#c3c3c9", lo: "#e0e0e4" };
+  var DARK = { plate: "#08090a", hi: "#d0d6e0", edge: "#5b5d64", mid: "#3e3e44", lo: "#29292d" };
+  var KEYS = ["plate", "hi", "edge", "mid", "lo"];
+  var vars = (p) => KEYS.map((k) => `--hl-${k}:var(--hairline-${k},${p[k]});`).join("");
+  var EASE = "cubic-bezier(0.5,0,0.1,1)";
+  var SVG = ":where([data-hairline]>svg)";
+  function css(lightDark) {
+    const both = Object.fromEntries(KEYS.map((k) => [k, `light-dark(${LIGHT[k]},${DARK[k]})`]));
+    return [
+      // the box, and the palette: light unless something below says otherwise
+      `:where([data-hairline]){display:block;position:relative;aspect-ratio:5/4;touch-action:pan-y;user-select:none;-webkit-user-select:none;--hl-sw:var(--hairline-stroke,0.9);${vars(LIGHT)}}`,
+      // the page's color-scheme
+      lightDark ? `:where([data-hairline]){${vars(both)}}` : "",
+      // an ancestor that says dark
+      `:where(.dark,[data-theme="dark"]) :where([data-hairline]){${vars(DARK)}}`,
+      // the figure's own theme option
+      `:where([data-hairline][data-hairline-theme="light"]){${vars(LIGHT)}}`,
+      `:where([data-hairline][data-hairline-theme="dark"]){${vars(DARK)}}`,
+      `:where([data-hairline]:focus-visible){outline:1.5px solid var(--hl-hi);outline-offset:2px}`,
+      `${SVG}{position:absolute;inset:0;width:100%;height:100%;display:block}`,
+      // Riffle's live region: read, not seen
+      `:where([data-hairline]>[data-hairline-live]){position:absolute;width:1px;height:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}`,
+      // the drawing: plates are filled with the plate colour and painted back to front
+      `${SVG} :where(path,polygon,ellipse,line){fill:var(--hl-plate);stroke:var(--hl-mid);stroke-width:var(--hl-sw);vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round;transition:stroke 260ms ${EASE}}`,
+      `${SVG} :where(.nf){fill:none}`,
+      `${SVG} :where(.fo){stroke:none}`,
+      `${SVG} :where(.sil){stroke:var(--hl-edge)}`,
+      `${SVG} :where(.hi){stroke:var(--hl-hi)}`,
+      `${SVG} :where(.lo){stroke:var(--hl-lo)}`,
+      `${SVG} :where(.dash){stroke-dasharray:1 3}`,
+      `${SVG} :where(.dot){stroke:none;fill:var(--hl-hi);transition:fill 260ms ${EASE}}`,
+      `${SVG} :where(.dot.m){fill:var(--hl-edge)}`,
+      `${SVG} :where(.dot.off){fill:var(--hl-lo)}`,
+      `${SVG} :where(.ghost path){fill:none;stroke:var(--hl-mid)}`
+    ].join("");
+  }
+  var done = /* @__PURE__ */ new WeakSet();
+  function inject(root) {
+    if (done.has(root)) return;
+    done.add(root);
+    const doc = root.nodeType === 9 ? root : root.ownerDocument;
+    const win = doc.defaultView;
+    const text = css(!!win?.CSS?.supports?.("color", "light-dark(#000,#fff)"));
+    if (win && "adoptedStyleSheets" in root) {
+      try {
+        const sheet = new win.CSSStyleSheet();
+        sheet.replaceSync(text);
+        root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+        return;
+      } catch {
+      }
+    }
+    const style = doc.createElement("style");
+    style.setAttribute("data-hairline-style", "");
+    style.textContent = text;
+    (root.nodeType === 9 ? doc.head ?? doc.documentElement : root).appendChild(style);
+  }
+  return __toCommonJS(kernel_exports);
+})();
+/* /hairline kernel */
+</script>
+<script id="hl-bench">
+/*
+ * The bench: the page a figure is shown on. It makes the host and the svg the
+ * way the package's mount does, hands them to the figure, and owns everything
+ * around it: the read-out, the slider, the theme, the line under the stage.
+ */
+(() => {
+  const RULES = ["hit", "order", "reach", "accent", "rest", "honesty", "cost", "clock", "radius", "quiet"];
+  const $ = (id) => document.getElementById(id);
+  const root = document.documentElement, params = new URLSearchParams(location.search);
+
+  /* the theme: the system's until the switch is pressed, then the switch's */
+  const dark = () => (root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches);
+  const label = () => { $("theme").textContent = dark() ? "dark" : "light"; };
+  $("theme").addEventListener("click", () => { root.dataset.theme = dark() ? "light" : "dark"; label(); });
+  /* ?theme=light or ?theme=dark wins over the system's, as pressing the switch does */
+  if (["light", "dark"].includes(params.get("theme"))) root.dataset.theme = params.get("theme");
+  label();
+
+  /* ?intensity=0 sets the slider before the figure mounts, for a look at either end */
+  const i = (params.get("intensity") || "").trim();
+  if (i && Number.isFinite(Number(i))) $("intensity").value = String(Math.min(1, Math.max(0, Number(i))));
+
+  /* ?w=240 narrows the page, for a look at the size of a thumbnail */
+  const w = Number(params.get("w"));
+  if (w > 0) document.querySelector("main").style.maxWidth = w + "px";
+
+  /* a figure that fails says so under the stage, instead of leaving an empty plate */
+  addEventListener("error", (e) => {
+    $("error").hidden = false;
+    $("error").textContent = String((e.error && e.error.message) || e.message);
+  });
+
+  let mounted = false;
+  window.hairline = (figure) => {
+    if (mounted) throw new Error("hairline: one figure per page.");
+    mounted = true;
+    const stage = $("stage"), slider = $("intensity");
+
+    /* intensity to the figure's own number: two straight lines that meet at 0.5, as in the package */
+    const [lo, mid, hi] = figure.range;
+    const at = (i) => Math.round((i <= 0.5 ? lo + (i / 0.5) * (mid - lo) : mid + ((i - 0.5) / 0.5) * (hi - mid)) * 1000) / 1000;
+
+    HL.inject(document);
+    stage.setAttribute("data-hairline", figure.name);
+    stage.setAttribute("role", "img");
+    stage.setAttribute("aria-label", figure.means);
+    const svg = HL.mk("svg", { viewBox: "0 0 400 320", "aria-hidden": "true" }, stage);
+
+    let text = null;
+    const read = {
+      get textContent() { return text; },
+      set textContent(value) { text = value == null ? "" : String(value); $("read").textContent = text; },
+    };
+
+    document.title = "Hairline · " + figure.name;
+    $("name").textContent = figure.name;
+    $("means").textContent = figure.means;
+    $("rules").textContent = figure.rules.map((n) => String(n).padStart(2, "0") + " " + RULES[n - 1]).join(" · ");
+    const show = () => { $("value").textContent = String(at(Number(slider.value))); };
+    show();
+
+    const handle = figure.mount({ stage, svg, read }, at(Number(slider.value)));
+    if (text === null) read.textContent = "rest";
+    slider.addEventListener("input", () => { show(); handle.set(at(Number(slider.value))); });
+    window.hairline.figure = handle;
+
+    /* ?at=200,160 holds the pointer at a viewBox point, for a picture of the answer without a mouse */
+    const p = (params.get("at") || "").split(",").map(Number);
+    if (p.length === 2 && p.every(Number.isFinite)) {
+      const r = stage.getBoundingClientRect();
+      stage.dispatchEvent(new PointerEvent("pointermove", {
+        pointerType: "mouse", pointerId: 1, bubbles: true,
+        clientX: r.left + (p[0] / 400) * r.width, clientY: r.top + (p[1] / 320) * r.height,
+      }));
+    }
+  };
+})();
+</script>
+<script type="module" id="hl-figure">
+/**
+ * Gamepad: the PlayStation DualSense controller, face on, traced from Sony's product photograph: its body with the two grips,
+ * the shoulder buttons, the touchpad between its two light bars, the seams of the black panel round the sticks, the d-pad's four keys, the
+ * triangle, circle, cross and square buttons, the two thumbsticks, the create and options buttons, the speaker grille, the PS
+ * button and the mute button. Every control stands a little proud of the body, its wall showing below it. As the pointer
+ * passes over the pad, the control under it presses down into its opening and springs back up when the pointer moves on, so a
+ * sweep across it plays the buttons one after another. The pressed control takes the bright edge and its name goes to the
+ * read-out. The slider is how far a control goes down.
+ *
+ * Every outline is in the photograph's pixels (1200 across), measured or traced from it, the body traced from its right half and
+ * mirrored, as the controller is symmetric. The control under the pointer is picked from its resting outline.
+ */
+const { mk, poly, open, spring, stepS, register, pointer, disposer } = HL;
+
+const K = 0.468, IX = 599.5, IY = 334, CX = 200, CY = 168, LIFT = 3.2;
+/** A point on screen from the photograph's pixels; up lifts it toward you, which in this view moves it up the screen. */
+const S = ([x, y], up = 0) => [CX + (x - IX) * K, CY + (y - IY) * K - up];
+const mirror = (pts) => pts.map(([x, y]) => [2 * IX - x, y]).reverse();
+const circle = (cx, cy, r, n = 32) => Array.from({ length: n }, (_, i) => [cx + r * Math.cos((i / n) * 2 * Math.PI), cy + r * Math.sin((i / n) * 2 * Math.PI)]);
+/** rounds every corner of a closed polygon by r, with n steps a corner */
+const round = (pts, r, n = 5) => pts.flatMap((p, i) => {
+  const a = pts[(i - 1 + pts.length) % pts.length], b = pts[(i + 1) % pts.length], u = [a[0] - p[0], a[1] - p[1]], w = [b[0] - p[0], b[1] - p[1]];
+  const lu = Math.hypot(...u), lw = Math.hypot(...w), rr = Math.min(r, lu / 2, lw / 2), s = [p[0] + (u[0] / lu) * rr, p[1] + (u[1] / lu) * rr], e = [p[0] + (w[0] / lw) * rr, p[1] + (w[1] / lw) * rr];
+  return Array.from({ length: n + 1 }, (_, k) => { const t = k / n; return [(1 - t) ** 2 * s[0] + 2 * (1 - t) * t * p[0] + t * t * e[0], (1 - t) ** 2 * s[1] + 2 * (1 - t) * t * p[1] + t * t * e[1]]; });
+});
+
+const BODY = [[611.3,100.0],[619.7,100.1],[626.6,100.3],[632.0,100.7],[638.9,101.0],[647.4,101.0],[654.3,101.3],[659.7,101.7],[665.4,102.0],[671.4,102.0],[677.6,102.4],[683.9,103.0],[694.6,103.8],[709.5,104.6],[722.1,105.9],[732.4,107.7],[740.4,108.9],[746.1,109.6],[751.5,110.2],[756.5,110.8],[761.5,111.1],[766.5,111.4],[771.5,111.6],[776.5,111.9],[781.5,112.2],[786.5,112.8],[791.5,113.4],[796.5,114.1],[801.5,114.9],[806.5,115.6],[811.5,116.5],[816.5,117.5],[821.5,118.5],[826.5,119.5],[831.5,120.5],[836.5,121.5],[841.5,122.5],[846.5,123.5],[851.5,124.5],[856.5,125.5],[861.5,126.5],[866.5,127.5],[871.5,128.8],[876.5,130.2],[881.0,132.2],[884.8,134.5],[888.2,138.6],[891.2,144.4],[896.2,155.3],[903.5,171.2],[908.8,183.3],[912.1,191.7],[916.1,202.1],[920.9,214.6],[924.0,223.3],[925.6,228.0],[928.8,238.5],[933.5,254.8],[937.2,268.0],[939.8,278.1],[942.6,289.8],[945.4,302.8],[948.3,316.6],[951.1,331.1],[953.6,346.1],[956.0,361.8],[957.5,373.6],[958.4,381.4],[959.3,392.0],[960.3,405.2],[960.8,420.1],[961.0,436.6],[961.0,447.6],[960.8,453.1],[960.5,458.7],[960.0,464.6],[958.8,475.6],[956.8,491.7],[955.1,503.2],[953.7,510.0],[952.5,515.3],[951.3,519.2],[949.9,523.5],[948.2,528.1],[946.1,532.7],[943.9,537.1],[941.7,540.7],[939.5,543.4],[935.0,548.3],[927.9,555.4],[923.0,560.0],[920.2,562.1],[916.5,564.4],[912.0,566.9],[909.0,568.7],[907.7,569.8],[906.0,570.4],[904.0,570.8],[898.5,570.9],[889.5,571.0],[877.8,571.0],[863.2,570.8],[855.3,570.7],[854.0,570.6],[852.8,570.2],[852.0,569.7],[851.3,568.9],[851.0,567.9],[850.8,566.0],[850.8,563.3],[850.6,561.2],[850.3,559.8],[847.9,554.4],[843.4,545.0],[836.6,528.9],[827.4,506.2],[819.3,485.3],[812.2,466.1],[807.0,452.6],[803.6,444.9],[801.2,439.7],[799.8,437.0],[798.1,434.2],[796.2,431.3],[793.9,428.4],[791.2,425.4],[788.6,422.7],[786.1,420.3],[783.2,417.9],[780.1,415.5],[776.5,413.2],[772.7,410.9],[769.1,409.1],[766.0,407.6],[762.7,406.3],[759.4,405.4],[756.3,404.7],[753.3,404.3],[749.7,404.2],[745.2,404.2],[737.6,405.1],[726.9,406.8],[719.3,407.7],[714.8,407.9],[708.9,408.0],[701.4,407.9],[694.7,407.7],[688.8,407.4],[679.4,407.1],[666.4,407.1],[627.4,407.0],[562.4,407.0],[518.7,407.2],[496.3,407.8],[483.1,407.9],[479.2,407.7],[471.4,406.7],[459.6,405.0],[451.6,404.2],[447.1,404.2],[443.2,404.7],[439.9,405.3],[437.0,406.1],[434.7,406.9],[431.9,408.1],[428.8,409.6],[425.7,411.3],[422.7,413.0],[419.8,414.9],[416.9,417.0],[413.0,420.4],[408.1,425.4],[404.0,430.1],[400.8,434.6],[397.0,441.8],[392.5,451.8],[386.7,466.4],[379.6,485.6],[371.5,506.5],[362.3,529.2],[355.6,545.0],[351.3,554.0],[349.0,559.4],[348.5,561.3],[348.2,563.8],[348.1,566.8],[347.8,568.8],[347.2,569.6],[346.1,570.2],[344.5,570.6],[341.5,570.8],[337.0,571.0],[326.2,571.0],[309.2,570.9],[298.6,570.8],[294.5,570.6],[291.6,569.9],[290.0,568.6],[287.1,566.9],[282.9,564.7],[279.4,562.6],[276.6,560.4],[271.5,555.7],[264.0,548.3],[259.3,543.2],[257.2,540.5],[254.7,536.0],[251.6,529.6],[249.0,522.9],[246.8,515.8],[245.0,508.8],[243.7,502.0],[242.5,495.0],[241.5,487.6],[240.3,477.1],[239.0,463.4],[238.3,445.3],[238.2,422.8],[238.7,405.0],[239.7,391.7],[241.3,376.0],[243.6,357.8],[246.5,339.0],[250.2,319.8],[253.5,303.3],[256.5,289.7],[259.3,277.8],[261.9,267.7],[265.7,254.0],[270.8,236.8],[276.2,220.3],[282.0,204.4],[286.6,192.3],[290.0,184.1],[295.5,171.5],[303.1,154.6],[308.5,143.1],[311.9,137.0],[315.1,133.2],[318.4,131.7],[322.5,130.2],[327.5,128.8],[332.5,127.5],[337.5,126.5],[342.5,125.5],[347.5,124.5],[352.5,123.5],[357.5,122.5],[362.5,121.5],[367.5,120.5],[372.5,119.5],[377.5,118.5],[382.5,117.5],[387.5,116.5],[392.5,115.6],[397.5,114.9],[402.5,114.1],[407.5,113.4],[412.5,112.8],[417.5,112.2],[422.5,111.9],[427.5,111.6],[432.5,111.4],[437.5,111.1],[442.5,110.8],[447.5,110.2],[452.9,109.6],[458.8,108.9],[466.9,107.6],[477.1,105.9],[489.7,104.6],[504.6,103.7],[515.1,103.0],[520.9,102.4],[527.1,102.0],[533.6,102.0],[539.3,101.7],[544.2,101.3],[550.9,101.0],[559.4,101.0],[567.1,100.7],[573.9,100.2],[584.6,100.0],[599.0,100.0],[606.4,100.0],[606.9,100.0]];
+// the seams where the white wings meet the black panel, from each foot up to the touchpad
+const SEAMS = [[[307.4,557.1],[310.9,550.0],[317.7,531.2],[322.7,513.9],[329.4,494.0],[341.0,462.2],[352.9,432.6],[370.1,394.5],[385.3,364.1],[398.4,340.5],[411.1,320.2],[423.8,302.2],[437.5,285.0],[452.5,267.5],[458.3,259.4],[464.1,247.8],[465.9,242.1],[467.6,233.9],[468.2,233.1],[471.6,240.5],[475.6,246.2],[484.0,254.8],[486.2,256.5],[488.5,257.4]],[[710.8,257.4],[713.0,256.4],[715.3,254.6],[722.9,246.7],[727.0,241.1],[730.4,233.6],[731.1,233.2],[734.7,247.2],[740.4,258.9],[746.1,267.0],[761.7,285.3],[775.4,302.5],[788.1,320.5],[800.8,340.8],[813.9,364.3],[828.6,393.9],[846.2,432.9],[858.1,462.5],[869.7,494.3],[876.1,513.3],[881.1,530.5],[888.2,550.3],[891.7,557.4]]];
+// the right shoulder button, measured row by row above the body; its foot is hidden behind the body
+const R1 = round([[775, 128], [775.5, 113], [778.5, 96], [789, 94], [814, 96], [837, 100], [854, 106], [865, 112], [870, 118], [872, 128]], 4);
+// the touchpad, between the light bars: its left edge measured down the inside of the left bar, its top along the body's crown
+const PAD_L = [[600, 100.5], [560, 101], [520, 104], [478, 108], [458, 114], [461, 145], [465, 172], [469, 200], [474, 225], [480, 240], [490, 250], [503, 256], [540, 257.5], [600, 258]];
+const PAD = round([...PAD_L.slice(0, -1), ...mirror(PAD_L).slice(1)], 3);
+const BAR = [[449, 117], [452, 135], [457, 160], [462, 185], [466, 210], [469, 232], [471, 246]];
+/** a d-pad key pointing at the pad's middle (375, 232) from direction a: its tip 7 out, its shoulders 26, its end 61 */
+const key = (a) => { const c = Math.cos(a), s = Math.sin(a), at = (d, w) => [375 + c * d - s * w, 232 + s * d + c * w]; return round([at(7, 0), at(26, -22.5), at(61, -22.5), at(61, 22.5), at(26, 22.5)], 7); };
+const arrowMark = (a) => { const c = Math.cos(a), s = Math.sin(a), at = (d, w) => [375 + c * d - s * w, 232 + s * d + c * w]; return [at(39, -5), at(46, 0), at(39, 5), at(39, -5)]; };
+const pill = (cx, cy, len, wid, tilt) => { const c = Math.cos(tilt), s = Math.sin(tilt); return round([[-wid / 2, -len / 2], [wid / 2, -len / 2], [wid / 2, len / 2], [-wid / 2, len / 2]].map(([x, y]) => [cx + x * c - y * s, cy + x * s + y * c]), wid / 2, 6); };
+const FACE = { triangle: [824.8, 179.3], square: [771.7, 232.2], circle: [877.9, 232.1], cross: [824.7, 285.5] };
+const STICKS = [[IX - 118.5, 330], [IX + 118.5, 330]];
+// the PS button: the PlayStation mark's silhouette, traced from the photograph
+const PS = [[[594.6,306.2],[605.2,309.1],[611.3,312.4],[613.2,315.1],[614.4,318.1],[614.7,327.0],[621.1,329.3],[623.4,330.9],[624.5,333.0],[624.4,334.4],[623.3,336.5],[620.7,338.5],[602.4,345.0],[600.0,344.8],[589.3,341.6],[582.1,340.9],[577.1,338.6],[575.8,337.1],[574.6,335.1],[575.8,332.2],[578.1,330.6],[589.9,326.4],[591.7,325.1],[592.1,309.0],[592.8,307.3],[594.2,306.3]]];
+// the controls: their outlines, their names, and the marks on their tops
+const CONTROLS = [
+  { name: "touchpad", loops: [PAD], lift: 1.6 },
+  { name: "L1", loops: [mirror(R1)], lift: 2.2 }, { name: "R1", loops: [R1], lift: 2.2 },
+  { name: "up", loops: [key(-Math.PI / 2)], mark: [arrowMark(-Math.PI / 2)] }, { name: "right", loops: [key(0)], mark: [arrowMark(0)] },
+  { name: "down", loops: [key(Math.PI / 2)], mark: [arrowMark(Math.PI / 2)] }, { name: "left", loops: [key(Math.PI)], mark: [arrowMark(Math.PI)] },
+  { name: "triangle", loops: [circle(...FACE.triangle, 22.9)], mark: [[[824.8, 167.5], [835, 185], [814.6, 185], [824.8, 167.5]]] },
+  { name: "square", loops: [circle(...FACE.square, 22.8)], mark: [[[762, 222.5], [781.5, 222.5], [781.5, 242], [762, 242], [762, 222.5]]] },
+  { name: "circle", loops: [circle(...FACE.circle, 22.6)], mark: [[...circle(...FACE.circle, 11.5, 24), [889.4, 232.1]]] },
+  { name: "cross", loops: [circle(...FACE.cross, 22.9)], mark: [[[815, 275.8], [834.4, 295.2]], [[834.4, 275.8], [815, 295.2]]] },
+  { name: "left stick", loops: [circle(...STICKS[0], 44)], mark: [[...circle(...STICKS[0], 34, 40), [STICKS[0][0] + 34, 330]]], lift: 5 },
+  { name: "right stick", loops: [circle(...STICKS[1], 44)], mark: [[...circle(...STICKS[1], 34, 40), [STICKS[1][0] + 34, 330]]], lift: 5 },
+  { name: "create", loops: [pill(433, 153, 32, 20, -0.18)], mark: [[[424, 126], [426, 132]], [[431, 124], [431.5, 130.5]], [[438, 125], [436, 131]]] },
+  { name: "options", loops: [pill(2 * IX - 433, 153, 32, 20, 0.18)], mark: [[[758, 126], [767, 126]], [[758, 129.5], [767, 129.5]], [[758, 133], [767, 133]]] },
+  { name: "PS button", loops: PS, lift: 1.4, mark: [[[602.5, 313], [602.5, 343]], round([[603.5, 317], [608, 318.5], [608.5, 326], [603.5, 327]], 1.5).concat([[603.5, 317]])] },
+  { name: "mute", loops: [pill(IX, 370.5, 32, 7.5, Math.PI / 2)], lift: 1.4 },
+].map((c) => ({ lift: LIFT, mark: [], ...c }));
+const GRILLE = [...[574, 587, 600, 613, 626].map((x) => [x, 279]), ...[580.5, 593.5, 606.5, 619.5].map((x) => [x, 290.5])];
+
+function mount({ stage, svg, read }, value) {
+  const bag = disposer(); let depth = value;
+  const g = mk("g", {}, svg), el = (cls) => mk("path", { class: cls }, g);
+  // the body, the black panel, the light bars and the grille never move
+  const shoulders = CONTROLS.filter((c) => c.name === "L1" || c.name === "R1"), rest = CONTROLS.filter((c) => !shoulders.includes(c));
+  const make = (c) => ({ ...c, well: el("nf lo"), wall: el("fo"), cap: el("sil"), marks: el("nf lo"), sp: spring(0) });
+  // the shoulder buttons sit behind the body; everything else on it
+  const back = shoulders.map(make);
+  el("sil").setAttribute("d", poly(BODY.map((p) => S(p))));
+  el("nf").setAttribute("d", SEAMS.map((l) => open(l.map((p) => S(p)))).join(""));
+  el("nf lo").setAttribute("d", open(BAR.map((p) => S(p))) + open(mirror(BAR).map((p) => S(p))));
+  el("nf lo").setAttribute("d", GRILLE.map(([x, y]) => poly(circle(x, y, 4, 12).map((p) => S(p)))).join(""));
+  const controls = [...back, ...rest.map(make)];
+  function draw() {
+    for (const c of controls) {
+      const up = c.lift * (1 - Math.min(0.9, depth) * c.sp.x);
+      c.well.setAttribute("d", c.loops.map((l) => poly(l.map((p) => S(p)))).join(""));
+      // the wall: the strips between the opening and the raised cap
+      c.wall.setAttribute("d", c.loops.map((l) => l.map((a, i) => { const b = l[(i + 1) % l.length]; return poly([S(a, up), S(b, up), S(b), S(a)]); }).join("")).join(""));
+      c.cap.setAttribute("d", c.loops.map((l) => poly(l.map((p) => S(p, up)))).join(""));
+      c.marks.setAttribute("d", c.mark.map((m) => open(m.map((p) => S(p, up)))).join(""));
+    }
+  }
+  draw();
+
+  const B = register(stage, (dt) => { let m = false; for (const c of controls) if (stepS(c.sp, dt)) m = true; draw(); return m; });
+  bag.add(B.unregister);
+
+  // each control's resting cap on screen; the last drawn that holds the pointer is the one on top
+  const inside = (q, pts) => { let k = false; for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) if ((pts[i][1] > q[1]) !== (pts[j][1] > q[1]) && q[0] < ((pts[j][0] - pts[i][0]) * (q[1] - pts[i][1])) / (pts[j][1] - pts[i][1]) + pts[i][0]) k = !k; return k; };
+  const hits = controls.map((c) => ({ c, loops: c.loops.map((l) => l.map((p) => S(p, c.lift))) }));
+  let lit = null;
+  function point(q) {
+    let c = null;
+    if (q) for (const h of hits) if (h.loops.some((l) => inside(q, l))) c = h.c;
+    if (c !== lit) { lit = c; for (const k of controls) { k.sp.t = k === c ? 1 : 0; k.cap.classList.toggle("hi", k === c); } }
+    read.textContent = c ? c.name : "rest";
+    B.wake();
+  }
+  point(null);
+
+  bag.add(pointer(stage, { move: point, leave: () => point(null) }));
+  bag.add(() => svg.replaceChildren());
+  return { set: (v) => { depth = v; draw(); }, destroy: bag.dispose };
+}
+
+hairline({
+  name: "gamepad",
+  means: "A DualSense controller: the button under the pointer presses down and springs back up, so a sweep across it plays them in turn.",
+  rules: [1, 4, 6, 8, 10],
+  range: [0.4, 0.75, 0.9],
+  mount,
+});
+</script>
+</body>
+</html>
