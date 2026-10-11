@@ -8,7 +8,7 @@ Free, hand-built 3D line figures that react to the pointer. Each one is a single
 
 [**Browse the gallery →**](https://animatedsvg.vercel.app)
 
-![130 figures](https://img.shields.io/badge/figures-130-232327?style=flat-square)
+![133 figures](https://img.shields.io/badge/figures-133-232327?style=flat-square)
 ![0 dependencies](https://img.shields.io/badge/dependencies-0-232327?style=flat-square)
 ![light and dark](https://img.shields.io/badge/themes-light%20%2B%20dark-232327?style=flat-square)
 [![MIT license](https://img.shields.io/badge/license-MIT-232327?style=flat-square)](LICENSE)
@@ -46,7 +46,7 @@ Every figure is an isometric line drawing that answers the pointer. A cat wakes 
 | **Games** | game controller · Pac-Man ghost · Tetris · Minecraft block |
 | **AI** | Claude's spark · Clawd · the thinking spinner · terminal · tool loop · subagents · context window |
 | **Data structures** | stack · queue · linked list · binary search tree · min-heap · hash table · graph |
-| **Algorithms** | binary search · bubble sort · call stack · recursion tree · git branches · packet routing · CPU cache |
+| **Algorithms** | binary search · bubble sort · call stack · recursion tree · git branches · packet routing · CPU cache · quicksort · Dijkstra · binary byte |
 | **Everyday** | desk lamp · coffee mug · envelope · wall clock · potted plant · keyboard |
 | **Music** | turntable · piano · metronome · cassette |
 | **Space** | rocket · ringed planet · satellite dish · moon phases |
