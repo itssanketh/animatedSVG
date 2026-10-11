@@ -22,197 +22,284 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 22 L16 8 L28 22' fill='none' stroke='%23888' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <script>/* light unless the visitor chose dark */ let t = "light"; try { if (localStorage.getItem("theme") === "dark") t = "dark"; } catch (e) {} document.documentElement.dataset.theme = t;</script>
 <style>
-  :root { color-scheme: light; --ground: #ffffff; --raise: #f7f7f8; --ink: #232327; --muted: #6f6f78; --line: #e0e0e4; }
+  /* surfaces: --ground is the page, --raise the alternate band; --surface is whatever a panel sits on, flipped inside .alt */
+  :root { color-scheme: light; --ground: #ffffff; --raise: #f5f5f7; --ink: #1d1d1f; --muted: #6e6e73; --line: rgba(0, 0, 0, .09);
+    --accent: #0071e3; --on-accent: #fff; --surface: var(--raise); --glass: rgba(255, 255, 255, .72);
+    --clock: cubic-bezier(.32, .72, 0, 1); /* Hairline's ease for a discrete change */ }
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) { color-scheme: dark; --ground: #08090a; --raise: #101113; --ink: #d0d6e0; --muted: #8a8c95; --line: #29292d; }
+    :root:not([data-theme="light"]) { color-scheme: dark; --ground: #08090a; --raise: #141517; --ink: #f5f5f7; --muted: #8e8e93; --line: rgba(255, 255, 255, .11);
+      --accent: #2997ff; --glass: rgba(20, 21, 23, .7); }
   }
-  :root[data-theme="dark"] { color-scheme: dark; --ground: #08090a; --raise: #101113; --ink: #d0d6e0; --muted: #8a8c95; --line: #29292d; }
+  :root[data-theme="dark"] { color-scheme: dark; --ground: #08090a; --raise: #141517; --ink: #f5f5f7; --muted: #8e8e93; --line: rgba(255, 255, 255, .11);
+    --accent: #2997ff; --glass: rgba(20, 21, 23, .7); }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
-  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   body {
     margin: 0; background: var(--ground); color: var(--ink); overflow-x: hidden;
-    font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased;
+    font: 17px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased;
   }
   a { color: inherit; }
-  .mono, button, .btn, code, .eyebrow { font: 12px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.02em; }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px; }
-  section { padding: 96px 0; border-top: 1px solid var(--line); scroll-margin-top: 56px; }
-  h1, h2, h3 { font-weight: 500; letter-spacing: -0.025em; margin: 0; }
-  h1 { font-size: clamp(36px, 6.4vw, 68px); line-height: 1.02; }
-  h2 { font-size: clamp(26px, 3.6vw, 38px); line-height: 1.1; margin-bottom: 16px; }
-  h3 { font-size: 16px; margin-bottom: 6px; }
-  .eyebrow { display: block; color: var(--muted); margin-bottom: 18px; text-transform: uppercase; }
-  .lede { color: var(--muted); max-width: 56ch; margin: 0; text-wrap: pretty; }
+  code, pre, kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 22px; }
+  section { padding: 120px 0; scroll-margin-top: 52px; }
+  .alt { background: var(--raise); --surface: var(--ground); }
+  /* type: tracking tightens and leading closes as the size grows */
+  h1, h2, h3 { font-weight: 600; margin: 0; }
+  h1 { font-size: clamp(44px, 8vw, 92px); line-height: 1.02; letter-spacing: -0.04em; text-wrap: balance; }
+  h2 { font-size: clamp(32px, 5vw, 56px); line-height: 1.06; letter-spacing: -0.03em; margin-bottom: 18px; text-wrap: balance; }
+  h3 { font-size: 19px; line-height: 1.25; letter-spacing: -0.012em; margin-bottom: 6px; }
+  /* Apple sets the headlines; small labels speak in the figures' read-out voice */
+  .eyebrow, .facts span { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.02em; text-transform: lowercase; color: var(--muted); }
+  .eyebrow { display: block; margin-bottom: 16px; }
+  .lede { color: var(--muted); max-width: 58ch; margin: 0; font-size: 19px; line-height: 1.45; text-wrap: pretty; }
+  .center { text-align: center; }
+  .center .lede { margin-inline: auto; }
 
-  /* nav */
+  /* nav: a translucent layer the page scrolls under; its edge only shows once something is under it */
   nav {
-    position: sticky; top: 0; z-index: 10; height: 56px; border-bottom: 1px solid var(--line);
-    background: color-mix(in srgb, var(--ground) 88%, transparent); backdrop-filter: blur(10px);
+    position: sticky; top: 0; z-index: 10; height: 52px;
+    background: var(--glass); backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%);
   }
+  @supports (animation-timeline: scroll()) {
+    nav { animation: edge linear both; animation-timeline: scroll(); animation-range: 0 48px; }
+    @keyframes edge { from { box-shadow: 0 1px 0 transparent; } to { box-shadow: 0 1px 0 var(--line); } }
+  }
+  @supports not (animation-timeline: scroll()) { nav { box-shadow: 0 1px 0 var(--line); } }
   nav .wrap { height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-  .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 500; letter-spacing: -0.01em; }
+  .brand { display: flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 600; font-size: 17px; letter-spacing: -0.02em; }
   .brand svg { width: 20px; height: 20px; }
-  .links { display: flex; align-items: center; gap: 22px; }
-  .links a { text-decoration: none; color: var(--muted); }
+  .links { display: flex; align-items: center; gap: 26px; font-size: 13px; }
+  .links a { text-decoration: none; color: var(--muted); transition: color .15s; }
   .links a:hover { color: var(--ink); }
-  @media (max-width: 720px) { .links a:not(.btn) { display: none; } }
+  @media (max-width: 760px) { .links a:not(.btn) { display: none; } .links { gap: 14px; } }
 
-  /* buttons */
+  /* buttons: pills that answer on press, not on release */
   button, .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px;
-    border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink);
-    cursor: pointer; text-decoration: none; white-space: nowrap; transition: border-color .15s;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 20px;
+    border: 0; border-radius: 999px; background: var(--surface); color: var(--ink);
+    font: 500 15px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: -0.01em;
+    cursor: pointer; text-decoration: none; white-space: nowrap; -webkit-tap-highlight-color: transparent;
+    transition: transform .25s cubic-bezier(.2, .8, .2, 1), background-color .15s, filter .15s;
   }
-  button:hover, .btn:hover { border-color: var(--ink); }
-  .primary { background: var(--ink); color: var(--ground); border-color: var(--ink); }
-  .links .btn { color: var(--ink); height: 32px; }
+  button:hover, .btn:hover { filter: brightness(.96); }
+  :root[data-theme="dark"] button:hover, :root[data-theme="dark"] .btn:hover { filter: brightness(1.25); }
+  button:active, .btn:active { transform: scale(.96); transition-duration: .08s; }
+  .primary { background: var(--accent); color: var(--on-accent); }
+  /* the key actions sit on a back plate and press down into it */
+  .cta, .form, .contact { isolation: isolate; }
+  .plate { position: relative; transition: translate .25s cubic-bezier(.2, .8, .2, 1), filter .15s; }
+  .plate::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; box-shadow: inset 0 0 0 1px var(--ink);
+    translate: -3px 3px; transition: translate .25s cubic-bezier(.2, .8, .2, 1); }
+  .plate:active { transform: none; translate: -3px 3px; transition-duration: .08s; }
+  .plate:active::before { translate: 0 0; transition-duration: .08s; }
+  .links .btn { height: 30px; padding: 0 14px; font-size: 13px; background: var(--ink); color: var(--ground); }
   /* the theme switch: a slider in the figures' line. A plate of a track, and a knob that rolls along it: a sun in the
      light, a black hole in the dark */
   .mode { width: 60px; height: 32px; padding: 0; border: 0; background: none; display: block; color: var(--ink); cursor: pointer; border-radius: 16px; }
-  .mode:hover { border: 0; }
-  .mode:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .mode:hover { filter: none !important; }
+  .mode:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .mode svg { width: 60px; height: 32px; display: block; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
   .mode .back { stroke: var(--muted); }
   .mode .face { fill: var(--ground); }
   .mode .side { fill: var(--ground); stroke: none; }
   .mode .star { fill: currentColor; stroke: none; }
   html.fading, html.fading * { transition: background-color .5s ease, border-color .5s ease, color .5s ease, fill .5s ease, stroke .5s ease !important; }
-  :focus-visible { outline: 1.5px solid var(--ink); outline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-  /* hero */
-  .hero { padding: 72px 0 96px; border: 0; }
-  .hero .wrap { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; align-items: center; }
-  .hero .lede { margin: 22px 0 30px; font-size: 17px; }
-  .cta { display: flex; flex-wrap: wrap; gap: 10px; }
-  .facts { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 34px; color: var(--muted); }
-  .facts span::before { content: "— "; }
-  .stage { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--ground); }
-  .stage iframe { display: block; width: 100%; height: 580px; border: 0; }
-  @media (max-width: 900px) {
-    .hero .wrap { grid-template-columns: minmax(0, 1fr); }
-    .stage iframe { height: 540px; }
+  /* hero: the headline, then the figure, large */
+  .hero { padding: 96px 0 120px; text-align: center; position: relative; isolation: isolate; }
+  /* a faint isometric ground behind the figure */
+  .hero::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    --grid: color-mix(in srgb, var(--ink) 11%, transparent);
+    background: repeating-linear-gradient(30deg, var(--grid) 0 1px, transparent 1px 34px), repeating-linear-gradient(-30deg, var(--grid) 0 1px, transparent 1px 34px);
+    mask-image: radial-gradient(ellipse 75% 55% at 50% 60%, #000 30%, transparent 80%); -webkit-mask-image: radial-gradient(ellipse 75% 55% at 50% 60%, #000 30%, transparent 80%); }
+  .hero .lede { margin: 24px auto 34px; font-size: clamp(19px, 2vw, 22px); }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; }
+  .hero .cta { justify-content: center; }
+  .hero .cta .btn { height: 46px; padding: 0 26px; font-size: 17px; }
+  /* the stage is a plate, its back edge down and to the left as the figures' are */
+  .stage { position: relative; margin-top: 64px; border-radius: 32px; background: var(--ground); box-shadow: 0 0 0 1px var(--line); }
+  .stage::before { content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit; background: var(--ground); box-shadow: 0 0 0 1px var(--line); translate: -10px 10px; }
+  .stage iframe { display: block; width: 100%; height: clamp(440px, 56vw, 660px); border: 0; border-radius: inherit; }
+  @media (max-width: 640px) { section { padding: 80px 0; } .hero { padding: 56px 0 80px; } .stage { margin-top: 44px; border-radius: 24px; } .stage iframe { height: 580px; } }
+  .facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 820px; margin: 56px auto 0; }
+  .facts div { padding: 4px 12px; }
+  .facts div + div { box-shadow: -1px 0 0 var(--line); }
+  .facts strong { display: block; font-size: clamp(26px, 3.4vw, 40px); font-weight: 600; letter-spacing: -0.03em; line-height: 1.1; }
+  .facts span { font-size: 12px; }
+  @media (max-width: 640px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 24px; } .facts div:nth-child(3) { box-shadow: none; } }
+  /* the first paint materialises rather than blinks in */
+  @media (prefers-reduced-motion: no-preference) {
+    .hero h1, .hero .lede, .hero .cta, .stage, .facts { animation: rise .9s cubic-bezier(.2, .8, .2, 1) both; }
+    .hero .lede { animation-delay: .06s; } .hero .cta { animation-delay: .12s; } .stage { animation-delay: .2s; } .facts { animation-delay: .28s; }
+    @keyframes rise { from { opacity: 0; transform: translateY(18px) scale(.985); filter: blur(6px); } }
   }
 
   /* features */
-  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 1px; margin-top: 48px;
-    background: var(--line); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
-  .features div { background: var(--ground); padding: 26px 22px; }
-  .features p { margin: 0; color: var(--muted); font-size: 14px; }
-  .features .mono { display: block; color: var(--muted); margin-bottom: 22px; }
+  .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 16px; margin-top: 56px; text-align: left; }
+  .features div { background: var(--surface); border-radius: 24px; padding: 32px 28px 30px; }
+  .features p { margin: 0; color: var(--muted); font-size: 15px; }
+  /* an isometric line icon on a plate; its one bright part rises on hover */
+  .glyph { display: block; width: 72px; height: 64px; margin-bottom: 28px; overflow: visible; fill: none; stroke-width: 1.1; stroke-linecap: round; stroke-linejoin: round; }
+  .glyph .base { stroke: var(--muted); }
+  .glyph .base .top { fill: var(--surface); }
+  .glyph .guide { stroke: var(--muted); stroke-dasharray: 2 2.5; }
+  .glyph .mark { stroke: var(--ink); transition: translate .7s var(--clock); }
+  .features div:hover .mark { translate: 0 -4px; }
 
   /* gallery */
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 24px; margin-top: 48px; }
-  .card { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 20px; margin-top: 24px; }
+  .card { background: var(--surface); border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 0 0 1px var(--line);
+    transition: box-shadow .15s; }
+  /* an outline, not a shadow; the edge brightens on what the pointer is on */
+  .card:hover, .card:focus-within, .example:hover { box-shadow: 0 0 0 1px var(--ink); }
   /* a card shows a still of its figure until the pointer comes to it; then the live figure loads over the still */
-  .live { position: relative; height: 520px; border-bottom: 1px solid var(--line); background: var(--ground); }
+  .live { position: relative; height: 480px; background: var(--ground); }
   .live img, .live iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
   .live img { object-fit: cover; object-position: top center; }
-  .live iframe { opacity: 0; transition: opacity .15s; }
+  .live iframe { opacity: 0; transition: opacity .2s; }
   .live.on iframe { opacity: 1; }
-  .card .body { padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .card h3 { margin: 0; text-transform: capitalize; }
-  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 40px; }
-  .tabs button[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
-  .tabs span { color: var(--muted); }
-  .tabs button[aria-pressed="true"] span { color: inherit; opacity: .7; }
-  .cat { margin-top: 56px; padding: 0; border-top: 0; }
-  .cat[hidden] { display: none; }
-  .cat > header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-  .cat > header h3 { font-size: 22px; margin: 0; }
-  .cat .grid { margin-top: 24px; }
+  .card .body { padding: 16px 16px 16px 22px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; box-shadow: 0 -1px 0 var(--line); }
+  .card h3 { margin: 0; font-size: 17px; }
   .actions { display: flex; flex-wrap: wrap; gap: 6px; }
-  .actions button, .actions .btn { height: 32px; padding: 0 11px; }
-
-  /* how + stack */
-  .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; }
-  @media (max-width: 820px) { .split { grid-template-columns: minmax(0, 1fr); } }
-  ol.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; }
-  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 40px 1fr; padding: 18px 0; border-top: 1px solid var(--line); }
-  ol.steps li:last-child { border-bottom: 1px solid var(--line); }
-  ol.steps li::before { content: "0" counter(s); font: 12px/1.9 ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
-  ol.steps p { margin: 0; color: var(--muted); font-size: 14px; }
-  code { background: var(--raise); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; font-size: 11.5px; }
-  pre { margin: 20px 0 0; padding: 16px; background: var(--raise); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
-  pre code { background: none; border: 0; padding: 0; }
-  .stack { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; margin-top: 40px; }
-  .stack div { border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
-  .stack p { margin: 0; color: var(--muted); font-size: 13.5px; }
-
-  /* about */
-  .about { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; align-items: start; }
-  @media (max-width: 820px) { .about { grid-template-columns: minmax(0, 1fr); } }
-  .role { list-style: none; margin: 24px 0 0; padding: 0; color: var(--muted); font-size: 14px; }
-  .role li { padding: 12px 0; border-top: 1px solid var(--line); }
-  .role li:last-child { border-bottom: 1px solid var(--line); }
-  .role strong { color: var(--ink); font-weight: 500; }
-  .contact { border: 1px solid var(--line); border-radius: 14px; padding: 28px; }
-  .contact p { color: var(--muted); margin: 0 0 22px; }
-
-  footer { border-top: 1px solid var(--line); padding: 32px 0 48px; color: var(--muted); }
-  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 24px; line-height: 1.7; }
-  footer a { color: var(--muted); }
+  .actions button, .actions .btn { height: 32px; padding: 0 13px; font-size: 13px; background: var(--raise); }
+  .actions .primary { background: var(--accent); }
+  /* the filter bar floats over the gallery as a glass capsule, and travels with it */
+  .bar { position: sticky; top: 64px; z-index: 5; margin-top: 48px; display: flex; align-items: center; gap: 10px; padding: 8px;
+    border-radius: 22px; background: var(--glass); backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%);
+    box-shadow: 0 0 0 1px var(--line), 0 8px 28px -12px rgba(0,0,0,.18); }
+  .tabs { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; min-width: 0; flex: 1;
+    mask-image: linear-gradient(90deg, transparent, #000 12px, #000 calc(100% - 24px), transparent); padding: 0 8px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button { height: 36px; padding: 0 14px; font-size: 14px; background: transparent; flex: none; }
+  .tabs button:hover { background: color-mix(in srgb, var(--ink) 6%, transparent); filter: none; }
+  .tabs button[aria-pressed="true"] { background: var(--ink); color: var(--ground); }
+  .tabs span { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 12px; }
+  .tabs button[aria-pressed="true"] span { color: inherit; opacity: .6; }
+  #cats { scroll-margin-top: 140px; }
+  .cat { margin-top: 64px; padding: 0; }
+  .cat[hidden] { display: none; }
+  .cat > header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+  .cat > header h3 { font-size: 28px; letter-spacing: -0.025em; margin: 0; }
+  .cat .count { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .cat .note { margin-top: 10px; font-size: 15px; }
 
   /* search */
-  .search { position: relative; margin-top: 40px; max-width: 560px; }
-  .search input { width: 100%; height: 46px; padding: 0 44px 0 42px; font: 15px/1 inherit; font-family: inherit; color: var(--ink);
-    background: var(--raise); border: 1px solid var(--line); border-radius: 10px; outline: none; }
-  .search input:focus { border-color: var(--ink); }
+  .search { position: relative; flex: 0 1 300px; min-width: 200px; }
+  .search input { width: 100%; height: 40px; padding: 0 40px 0 38px; font: inherit; font-size: 15px; color: var(--ink);
+    background: color-mix(in srgb, var(--ink) 6%, transparent); border: 0; border-radius: 14px; outline: none; transition: box-shadow .15s; }
+  .search input:focus { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent); }
   .search input::-webkit-search-cancel-button { display: none; }
-  .search svg { position: absolute; left: 14px; top: 14px; width: 18px; height: 18px; stroke: var(--muted); fill: none; stroke-width: 1.6; stroke-linecap: round; }
-  .search kbd { position: absolute; right: 12px; top: 12px; font: 11px/20px ui-monospace, monospace; padding: 0 7px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); }
-  .result { color: var(--muted); margin-top: 14px; min-height: 18px; }
-  .empty { margin-top: 40px; padding: 40px 24px; border: 1px dashed var(--line); border-radius: 14px; text-align: center; color: var(--muted); }
+  .search svg { position: absolute; left: 13px; top: 12px; width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 1.8; stroke-linecap: round; }
+  .search kbd { position: absolute; right: 9px; top: 9px; font-size: 12px; line-height: 22px; padding: 0 7px; border-radius: 6px; color: var(--muted); background: var(--ground); box-shadow: 0 0 0 1px var(--line); }
+  @media (max-width: 720px) { .bar { flex-direction: column; align-items: stretch; } .search { flex: none; } .tabs { padding: 0; } }
+  .result { color: var(--muted); margin-top: 18px; min-height: 22px; font-size: 15px; }
+  .empty { margin-top: 32px; padding: 56px 24px; border-radius: 24px; background: var(--surface); text-align: center; color: var(--muted); }
   .empty[hidden], .card[hidden] { display: none; }
   /* a card is only laid out and painted near the screen */
-  .card { content-visibility: auto; contain-intrinsic-size: auto 590px; }
+  .card { content-visibility: auto; contain-intrinsic-size: auto 545px; }
+
+  /* how */
+  .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 64px; align-items: start; }
+  @media (max-width: 860px) { .split { grid-template-columns: minmax(0, 1fr); } }
+  ol.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; display: grid; gap: 12px; }
+  ol.steps li { counter-increment: s; display: grid; grid-template-columns: 44px 1fr; padding: 22px 24px; border-radius: 20px; background: var(--surface); }
+  ol.steps li::before { content: counter(s, decimal-leading-zero); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; box-shadow: inset 0 0 0 1px var(--ink); color: var(--ink); }
+  ol.steps p { margin: 0; color: var(--muted); font-size: 15px; }
+  code { background: var(--surface); padding: 2px 6px; border-radius: 6px; font-size: .86em; }
+  pre { margin: 28px 0 0; padding: 20px 22px; background: var(--surface); border-radius: 18px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .stack { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 16px; margin-top: 56px; text-align: left; }
+  .stack div { background: var(--surface); border-radius: 20px; padding: 24px; }
+  .stack p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  /* about */
+  .about { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 64px; align-items: start; }
+  @media (max-width: 860px) { .about { grid-template-columns: minmax(0, 1fr); } }
+  .role { list-style: none; margin: 28px 0 0; padding: 0; color: var(--muted); font-size: 15px; }
+  .role li { padding: 14px 0; box-shadow: 0 -1px 0 var(--line); }
+  .role strong { color: var(--ink); font-weight: 600; }
+  .role a { color: var(--accent); text-decoration: none; }
+  .role a:hover { text-decoration: underline; }
+  .contact { background: var(--surface); border-radius: 28px; padding: 40px; }
+  .contact h3 { font-size: 28px; letter-spacing: -0.025em; line-height: 1.15; }
+  .contact p { color: var(--muted); margin: 10px 0 28px; }
+
+  footer { padding: 28px 0 48px; color: var(--muted); font-size: 13px; box-shadow: 0 -1px 0 var(--line); }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 24px; line-height: 1.7; }
+  footer a { color: var(--ink); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
 
   /* use it */
-  .snip-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 36px; }
-  .snip-tabs button[aria-selected="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
-  .snip { position: relative; }
-  .snip pre { margin-top: 14px; min-height: 150px; }
-  .snip .copy { position: absolute; top: 10px; right: 10px; height: 28px; padding: 0 10px; background: var(--ground); }
-  .params { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; margin-top: 18px; }
-  .params div { border: 1px solid var(--line); border-radius: 12px; padding: 16px; font-size: 14px; color: var(--muted); }
-  .params code { color: var(--ink); }
-  .where { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; margin-top: 28px; }
-  .where div { border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
-  .where p { margin: 0; color: var(--muted); font-size: 13.5px; }
-  .examples { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 24px; margin-top: 28px; }
-  .example { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: flex; flex-direction: column; }
-  .example .bar { display: flex; gap: 6px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--raise); }
-  .example .bar i { width: 9px; height: 9px; border-radius: 50%; border: 1px solid var(--line); }
-  .example .bar span { margin-left: 8px; color: var(--muted); }
-  .example .page { padding: 22px 22px 18px; text-align: center; }
-  .example .page iframe { display: block; width: 100%; height: 300px; border: 0; margin: 0 auto 6px; }
-  .example .page h3 { font-size: 20px; }
-  .example .page p { color: var(--muted); margin: 6px 0 16px; font-size: 14px; }
-  .example details { border-top: 1px solid var(--line); padding: 12px 16px; margin-top: auto; }
-  .example summary { cursor: pointer; color: var(--muted); }
-  .example pre { margin-top: 12px; font-size: 11.5px; }
+  .snip-tabs { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-top: 44px; padding: 4px; border-radius: 999px; background: var(--surface); }
+  .snip-tabs button { height: 34px; padding: 0 15px; font-size: 14px; background: transparent; }
+  .snip-tabs button[aria-selected="true"] { background: var(--ink); color: var(--ground); }
+  .snip { position: relative; text-align: left; }
+  .snip pre { margin-top: 16px; min-height: 170px; }
+  .snip .copy { position: absolute; top: 12px; right: 12px; height: 30px; padding: 0 14px; font-size: 13px; background: var(--raise); }
+  .params { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 12px; margin-top: 16px; text-align: left; }
+  .params div { background: var(--surface); border-radius: 18px; padding: 20px; font-size: 15px; color: var(--muted); }
+  .params code { color: var(--ink); background: none; padding: 0; font-weight: 600; }
+  .subhead { margin-top: 88px; font-size: 28px; letter-spacing: -0.025em; }
+  .where { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr)); gap: 12px; margin-top: 24px; text-align: left; }
+  .where div { background: var(--surface); border-radius: 20px; padding: 22px; }
+  .where p { margin: 0; color: var(--muted); font-size: 15px; }
+  .examples { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 20px; margin-top: 24px; text-align: left; }
+  .example { background: var(--surface); border-radius: 24px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 0 0 1px var(--line); transition: box-shadow .15s; }
+  .example .chrome { display: flex; gap: 7px; align-items: center; padding: 12px 14px; box-shadow: 0 1px 0 var(--line); }
+  .example .chrome i { width: 11px; height: 11px; border-radius: 50%; background: color-mix(in srgb, var(--ink) 14%, transparent); }
+  .example .chrome span { margin: 0 auto; padding: 3px 14px; border-radius: 8px; font-size: 12px; color: var(--muted); background: var(--raise); }
+  .example .page { padding: 22px 22px 22px; text-align: center; }
+  .example .page iframe { display: block; width: 100%; height: 300px; border: 0; margin: 0 auto 8px; }
+  .example .page h3 { font-size: 24px; letter-spacing: -0.02em; }
+  .example .page p { color: var(--muted); margin: 6px 0 18px; font-size: 15px; }
+  .example details { box-shadow: 0 -1px 0 var(--line); padding: 14px 20px; margin-top: auto; }
+  .example summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+  .example pre { margin-top: 12px; font-size: 12px; background: var(--raise); }
 
   /* suggest */
-  .suggest { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 48px; align-items: start; }
-  @media (max-width: 820px) { .suggest { grid-template-columns: minmax(0, 1fr); } }
-  .form { display: grid; gap: 16px; }
-  .form label { display: grid; gap: 7px; color: var(--muted); }
-  .form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media (max-width: 560px) { .form .row { grid-template-columns: 1fr; } }
-  .form input, .form textarea, .form select { font: 15px/1.4 ui-sans-serif, system-ui, sans-serif; color: var(--ink); background: var(--raise);
-    border: 1px solid var(--line); border-radius: 8px; padding: 11px 12px; width: 100%; }
-  .form input:focus, .form textarea:focus, .form select:focus { outline: none; border-color: var(--ink); }
+  .suggest { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 64px; align-items: start; }
+  @media (max-width: 860px) { .suggest { grid-template-columns: minmax(0, 1fr); } }
+  .form { display: grid; gap: 18px; background: var(--surface); border-radius: 28px; padding: 32px; }
+  .form label { display: grid; gap: 8px; color: var(--muted); font-size: 14px; font-weight: 500; }
+  .form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  @media (max-width: 560px) { .form .row { grid-template-columns: 1fr; } .form { padding: 22px; } }
+  .form input, .form textarea, .form select { font: 16px/1.4 system-ui, -apple-system, BlinkMacSystemFont, sans-serif; color: var(--ink); background: var(--ground);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; width: 100%; transition: box-shadow .15s, border-color .15s; }
+  .form input:focus, .form textarea:focus, .form select:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 10%, transparent); }
   .form input[type="file"] { padding: 9px; }
-  .form input::file-selector-button { font: 12px ui-monospace, monospace; color: var(--ink); background: var(--ground); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; margin-right: 10px; cursor: pointer; }
+  .form input::file-selector-button { font: 500 13px system-ui, sans-serif; color: var(--ink); background: var(--raise); border: 0; border-radius: 999px; padding: 7px 14px; margin-right: 10px; cursor: pointer; }
   .form .hint { color: var(--muted); font-size: 13px; margin: 0; }
-  .form button { justify-self: start; height: 42px; padding: 0 20px; }
+  .form button { justify-self: start; height: 46px; padding: 0 26px; font-size: 16px; }
 
+  /* the toast arrives as a material: rising, sharpening and growing together */
   #toast {
-    position: fixed; left: 50%; bottom: 24px; z-index: 20; translate: -50% 16px; opacity: 0; pointer-events: none;
-    background: var(--ink); color: var(--ground); padding: 11px 15px; border-radius: 8px; transition: opacity .2s, translate .2s;
+    position: fixed; left: 50%; bottom: 28px; z-index: 20; translate: -50% 20px; scale: .94; opacity: 0; filter: blur(4px); pointer-events: none;
+    background: color-mix(in srgb, var(--ink) 88%, transparent); color: var(--ground); padding: 12px 20px; border-radius: 999px; font-size: 15px; font-weight: 500;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); box-shadow: 0 12px 32px rgba(0,0,0,.2);
+    transition: opacity .3s, translate .45s cubic-bezier(.2, .8, .2, 1), scale .45s cubic-bezier(.2, .8, .2, 1), filter .3s;
   }
-  #toast.on { opacity: 1; translate: -50% 0; }
-  @media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
+  #toast.on { opacity: 1; translate: -50% 0; scale: 1; filter: none; }
+
+  /* gentler equivalents for those who ask for them */
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    #toast { translate: -50% 0; scale: 1; filter: none; transition: opacity .2s; }
+    button:active, .btn:active, .plate:active { transform: none; translate: none; }
+    .plate:active::before { translate: -3px 3px; }
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    nav, .bar, #toast { backdrop-filter: none; -webkit-backdrop-filter: none; }
+    nav, .bar { background: var(--ground); }
+    #toast { background: var(--ink); }
+  }
+  @media (prefers-contrast: more) {
+    :root { --line: rgba(0, 0, 0, .4); --muted: #4a4a4f; }
+    :root[data-theme="dark"] { --line: rgba(255, 255, 255, .45); --muted: #c7c7cc; }
+    nav, .bar { background: var(--ground); backdrop-filter: none; box-shadow: 0 1px 0 var(--line); }
+    .card, .features div, .stack div, .where div, .params div, ol.steps li, .contact, .form, .example { box-shadow: 0 0 0 1px var(--line); }
+  }
 </style>
 </head>
 <body>
@@ -220,10 +307,10 @@
 <nav>
   <div class="wrap">
     <a class="brand" href="#top" aria-label="animatedSVG home">
-      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 22 L16 8 L28 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 22 L16 8 L28 22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       animatedSVG
     </a>
-    <div class="links mono">
+    <div class="links">
       <a href="#gallery">Gallery</a>
       <a href="#use">Use it</a>
       <a href="#suggest">Suggest</a>
@@ -242,49 +329,56 @@
 
 <header class="hero" id="top">
   <div class="wrap">
-    <div>
-      <span class="eyebrow">Free interactive SVG animations</span>
-      <h1>Line art that moves when you do.</h1>
-      <p class="lede">animatedSVG is a free library of hand-built 3D line figures that react to the pointer. Each one is a single HTML file with no dependencies. Copy it, embed it, or download it, and it works on any website.</p>
-      <div class="cta">
-        <a class="btn primary" href="#gallery">Browse the gallery</a>
-        <a class="btn" href="#use">How to use it</a>
-      </div>
-      <div class="facts mono"><span id="count">12 figures</span><span>0 dependencies</span><span>light + dark</span><span>free to use</span></div>
+    <span class="eyebrow">Free interactive SVG animations</span>
+    <h1>Line art that moves<br>when you do.</h1>
+    <p class="lede">A free library of hand-built 3D line figures that react to the pointer. Each one is a single HTML file with no dependencies. Copy it, embed it, or download it. It works on any website.</p>
+    <div class="cta">
+      <a class="btn primary plate" href="#gallery">Browse the gallery</a>
+      <a class="btn plate" href="#use">How to use it</a>
     </div>
     <div class="stage">
       <iframe title="Live demo: a cat that wakes and watches the pointer"></iframe>
+    </div>
+    <div class="facts">
+      <div><strong id="count">12</strong><span>figures</span></div>
+      <div><strong>0</strong><span>dependencies</span></div>
+      <div><strong>2</strong><span>themes, light + dark</span></div>
+      <div><strong>Free</strong><span>to use anywhere</span></div>
     </div>
   </div>
 </header>
 
 <main>
   <section id="features">
-    <div class="wrap">
+    <div class="wrap center">
       <span class="eyebrow">What it is</span>
       <h2>Small, alive, and easy to drop in.</h2>
       <p class="lede">Most animation kits ship a runtime, a build step and a bundle. These are plain files you can read, paste and change.</p>
       <div class="features">
-        <div><span class="mono">01</span><h3>Reacts to the pointer</h3><p>Figures wake up, turn and follow the cursor on springs, then settle back to rest.</p></div>
-        <div><span class="mono">02</span><h3>One file each</h3><p>Markup, styles, engine and figure in a single HTML file. No npm, no bundler, no CDN.</p></div>
-        <div><span class="mono">03</span><h3>Light and dark</h3><p>Follows the visitor's colour scheme automatically, or force one with a single attribute.</p></div>
-        <div><span class="mono">04</span><h3>Crisp at any size</h3><p>Drawn as SVG paths, so lines stay sharp on every screen and zoom level.</p></div>
+        <div><svg class="glyph" viewBox="0 0 56 50" aria-hidden="true"><g class="base"><path class="top" d="M28,22 L50,32 L28,42 L6,32 Z"/><path d="M6,32 V36 L28,46 L50,36 V32 M28,42 V46"/></g><path class="guide" d="M28,27 V32"/><g class="mark"><path d="M24,3 V20 L28,16.5 L31,22 L33.5,20.8 L30.6,15.4 L35.5,15 Z"/></g></svg><h3>Reacts to the pointer</h3><p>Figures wake up, turn and follow the cursor on springs, then settle back to rest.</p></div>
+        <div><svg class="glyph" viewBox="0 0 56 50" aria-hidden="true"><g class="base"><path class="top" d="M28,22 L50,32 L28,42 L6,32 Z"/><path d="M6,32 V36 L28,46 L50,36 V32 M28,42 V46"/></g><path class="guide" d="M28,27 V32"/><g class="mark"><path d="M22,2 H31 L35,6 V22 H22 Z M31,2 V6 H35 M25,11 H32 M25,15 H32 M25,19 H29"/></g></svg><h3>One file each</h3><p>Markup, styles, engine and figure in a single HTML file. No npm, no bundler, no CDN.</p></div>
+        <div><svg class="glyph" viewBox="0 0 56 50" aria-hidden="true"><g class="base"><path class="top" d="M28,22 L50,32 L28,42 L6,32 Z"/><path d="M6,32 V36 L28,46 L50,36 V32 M28,42 V46"/></g><path class="guide" d="M28,27 V32"/><g class="mark"><circle cx="28" cy="13" r="9"/><path d="M28,4 A5.5,9 0 0 0 28,22"/></g></svg><h3>Light and dark</h3><p>Follows the visitor's colour scheme automatically, or force one with a single attribute.</p></div>
+        <div><svg class="glyph" viewBox="0 0 56 50" aria-hidden="true"><g class="base"><path class="top" d="M28,22 L50,32 L28,42 L6,32 Z"/><path d="M6,32 V36 L28,46 L50,36 V32 M28,42 V46"/></g><path class="guide" d="M28,27 V32"/><g class="mark"><path d="M19,21 C21,7 35,7 37,21 M19,21 L22,7 M37,21 L34,7"/><circle cx="22" cy="7" r="1.6"/><circle cx="34" cy="7" r="1.6"/><rect x="17.5" y="19.5" width="3" height="3"/><rect x="35.5" y="19.5" width="3" height="3"/></g></svg><h3>Crisp at any size</h3><p>Drawn as SVG paths, so lines stay sharp on every screen and zoom level.</p></div>
       </div>
     </div>
   </section>
 
-  <section id="gallery">
+  <section id="gallery" class="alt">
     <div class="wrap">
-      <span class="eyebrow">Gallery</span>
-      <h2>Pick a figure. Take the code.</h2>
-      <p class="lede">Every figure below is running live. Hover it, then copy the full code or an embed snippet for your own site.</p>
-      <div class="search" role="search">
-        <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6"/><path d="M13 13 L18 18"/></svg>
-        <input id="q" type="search" placeholder="Search figures: fan, logo, space, react…" aria-label="Search figures" autocomplete="off" spellcheck="false">
-        <kbd>/</kbd>
+      <div class="center">
+        <span class="eyebrow">Gallery</span>
+        <h2>Pick a figure. Take the code.</h2>
+        <p class="lede">Every figure below runs live. Hover one, then copy the full code or an embed snippet for your own site.</p>
       </div>
-      <div class="result mono" id="result" aria-live="polite"></div>
-      <div class="tabs mono" id="tabs" role="group" aria-label="Filter by category"></div>
+      <div class="bar">
+        <div class="search" role="search">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="8.5" cy="8.5" r="6"/><path d="M13 13 L18 18"/></svg>
+          <input id="q" type="search" placeholder="Search: fan, logo, space…" aria-label="Search figures" autocomplete="off" spellcheck="false">
+          <kbd>/</kbd>
+        </div>
+        <div class="tabs" id="tabs" role="group" aria-label="Filter by category"></div>
+      </div>
+      <div class="result" id="result" aria-live="polite"></div>
       <div id="cats"></div>
       <div class="empty" id="empty" hidden><p>No figure matches that yet.</p><a class="btn primary" id="ask" href="#suggest">Suggest it</a></div>
     </div>
@@ -309,20 +403,20 @@
     </div>
   </section>
 
-  <section id="use">
-    <div class="wrap">
+  <section id="use" class="alt">
+    <div class="wrap center">
       <span class="eyebrow">Use it</span>
       <h2>Paste one line. It works anywhere.</h2>
       <p class="lede">Every figure is a page you can drop into an <code>&lt;iframe&gt;</code>. Pick your stack, copy the snippet, change the name to any figure in the gallery.</p>
-      <div class="snip-tabs mono" id="snip-tabs" role="tablist" aria-label="Your stack"></div>
-      <div class="snip"><pre><code id="snip-code"></code></pre><button class="copy mono" id="snip-copy" type="button">Copy</button></div>
+      <div class="snip-tabs" id="snip-tabs" role="tablist" aria-label="Your stack"></div>
+      <div class="snip"><pre><code id="snip-code"></code></pre><button class="copy" id="snip-copy" type="button">Copy</button></div>
       <div class="params">
         <div><code>hairline-NAME.html</code><br>the figure: the name on its card in the gallery, such as <code>gpu</code> or <code>cat</code>.</div>
         <div><code>?theme=dark</code> or <code>light</code><br>locks its colours. Leave it off and it follows the visitor's system.</div>
         <div><code>&amp;intensity=0..1</code><br>how strongly it answers the pointer: a calm 0.2 for a footer, a lively 1 for a hero.</div>
       </div>
 
-      <h3 style="margin-top:56px;font-size:20px">Where to use it</h3>
+      <h3 class="subhead">Where to use it</h3>
       <div class="where">
         <div><h3>Hero sections</h3><p>A figure beside your headline that answers the cursor, in place of a stock illustration.</p></div>
         <div><h3>404 and error pages</h3><p>Turn a dead end into something people play with for a second.</p></div>
@@ -331,7 +425,7 @@
         <div><h3>Portfolios and READMEs</h3><p>Link a live figure from a project page, or drop one into your about section.</p></div>
       </div>
 
-      <h3 style="margin-top:56px;font-size:20px">Examples, built with the snippets above</h3>
+      <h3 class="subhead">Examples, built with the snippets above</h3>
       <div class="examples" id="examples"></div>
     </div>
   </section>
@@ -354,24 +448,24 @@
         <input type="hidden" name="_next" id="next" value="https://animatedsvg.vercel.app/?sent=1#suggest">
         <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off">
         <div class="row">
-          <label class="mono">Your name<input name="name" required autocomplete="name"></label>
-          <label class="mono">Your email<input type="email" name="email" required autocomplete="email"></label>
+          <label>Your name<input name="name" required autocomplete="name"></label>
+          <label>Your email<input type="email" name="email" required autocomplete="email"></label>
         </div>
-        <label class="mono">The figure<input name="figure" id="idea" required placeholder="A vinyl record that scratches back and forth"></label>
-        <label class="mono">Section
+        <label>The figure<input name="figure" id="idea" required placeholder="A vinyl record that scratches back and forth"></label>
+        <label>Section
           <select name="section" id="section"><option value="">Choose one, or leave it</option></select>
         </label>
-        <label class="mono">How should it move, and where will you use it?<textarea name="details" rows="4" placeholder="It spins up when the pointer comes near; for the hero of my music blog"></textarea></label>
-        <label class="mono">Reference link<input type="url" name="reference_link" placeholder="https://"></label>
-        <label class="mono">Reference image<input type="file" name="attachment" accept="image/*"></label>
+        <label>How should it move, and where will you use it?<textarea name="details" rows="4" placeholder="It spins up when the pointer comes near; for the hero of my music blog"></textarea></label>
+        <label>Reference link<input type="url" name="reference_link" placeholder="https://"></label>
+        <label>Reference image<input type="file" name="attachment" accept="image/*"></label>
         <p class="hint">Sent by email through FormSubmit. Your address is only used to reply.</p>
-        <button class="primary" type="submit">Send suggestion</button>
+        <button class="primary plate" type="submit">Send suggestion</button>
       </form>
     </div>
   </section>
 
-  <section id="stack">
-    <div class="wrap">
+  <section id="stack" class="alt">
+    <div class="wrap center">
       <span class="eyebrow">Tech stack</span>
       <h2>Built on the web platform.</h2>
       <div class="stack">
@@ -403,27 +497,27 @@
         <span class="eyebrow">Contact</span>
         <h3>Want a custom figure or have a question?</h3>
         <p>Email directly. Requests for new figures, bug reports and feedback are all welcome.</p>
-        <a class="btn primary" href="mailto:sankeths908@gmail.com">sankeths908@gmail.com</a>
+        <a class="btn primary plate" href="mailto:sankeths908@gmail.com">sankeths908@gmail.com</a>
       </div>
     </div>
   </section>
 </main>
 
 <footer>
-  <div class="wrap mono">
+  <div class="wrap">
     <span>© 2026 animatedSVG · Sanketh</span>
     <span>Figures built on <a href="https://github.com/lucasmarkes/hairline" target="_blank" rel="noopener">Hairline</a> by Lucas Marques (MIT) · <a href="THIRD_PARTY_NOTICES.txt">Licenses</a></span>
   </div>
 </footer>
 
-<div id="toast" class="mono" role="status" aria-live="polite"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 <template id="card">
   <article class="card">
     <div class="live"><img class="poster" alt="" loading="lazy" decoding="async" width="366" height="520"></div>
     <div class="body">
       <h3></h3>
-      <div class="actions mono">
+      <div class="actions">
         <button class="primary" data-act="code">Copy code</button>
         <button data-act="embed">Copy embed</button>
         <a class="btn" download>Download</a>
@@ -539,7 +633,7 @@ const CATEGORIES = [
 // shown under a category's heading
 const NOTES = { Marks: "Linux distribution logos, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them.", Logos: "Company and project logos, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them.", Anime: "Fan tributes drawn with the motion techniques of anime: flowing cloth, twist lines, speed and swing lines. The series and their marks belong to their creators; animatedSVG is not affiliated with them.", Languages: "Programming language logos, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them.", Social: "Social media logos, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them.", "Dev brands": "Logos of tools developers use every day, drawn as a tribute. The marks belong to their owners; animatedSVG is not affiliated with them.", AI: "A tribute to Claude and Claude Code. The spark and Clawd belong to Anthropic; animatedSVG is not affiliated with Anthropic." };
 const FIGURES = CATEGORIES.flatMap(([, names]) => names);
-document.getElementById("count").textContent = `${FIGURES.length} figures`;
+document.getElementById("count").textContent = FIGURES.length;
 
 const cats = document.getElementById("cats"), tabs = document.getElementById("tabs"), tpl = document.getElementById("card"), toast = document.getElementById("toast");
 let timer;
@@ -567,13 +661,13 @@ for (const [cat, n] of [["All", FIGURES.length], ...CATEGORIES.map(([c, names]) 
   const b = document.createElement("button");
   b.dataset.cat = cat;
   b.innerHTML = `${cat} <span>${n}</span>`;
-  b.onclick = () => { if (q.value) { q.value = ""; search(); } show(cat); };
+  b.onclick = () => { if (q.value) { q.value = ""; search(); } show(cat); if (cats.getBoundingClientRect().top < 0) cats.scrollIntoView(); };
   buttons.push(b); tabs.append(b);
 }
 for (const [cat, names] of CATEGORIES) {
   const sec = document.createElement("section");
   sec.className = "cat";
-  sec.innerHTML = `<header><h3>${cat}</h3><span class="mono count" style="color:var(--muted)">${names.length} figures</span></header>${NOTES[cat] ? `<p class="lede" style="margin-top:14px;font-size:14px">${NOTES[cat]}</p>` : ""}<div class="grid"></div>`;
+  sec.innerHTML = `<header><h3>${cat}</h3><span class="count">${names.length} figures</span></header>${NOTES[cat] ? `<p class="lede note">${NOTES[cat]}</p>` : ""}<div class="grid"></div>`;
   sections[cat] = sec; cats.append(sec);
 }
 show("All");
@@ -718,7 +812,7 @@ for (const e of EXAMPLES) {
   const snippet = `<iframe src="${BASE}/hairline-${e.name}.html" title="${e.name}"\n  width="100%" height="300" style="border:0" loading="lazy"></iframe>\n<h3>${e.title}</h3>\n<p>${e.text}</p>\n<a class="btn">${e.btn}</a>`;
   const el = document.createElement("div");
   el.className = "example";
-  el.innerHTML = `<div class="bar"><i></i><i></i><i></i><span class="mono">${e.url}</span></div><div class="page"><iframe title="${e.title}: ${e.name} figure"></iframe><h3>${e.title}</h3><p>${e.text}</p><a class="btn primary" href="#gallery">${e.btn}</a></div><details><summary class="mono">The snippet</summary><pre><code></code></pre></details>`;
+  el.innerHTML = `<div class="chrome"><i></i><i></i><i></i><span>${e.url}</span></div><div class="page"><iframe title="${e.title}: ${e.name} figure"></iframe><h3>${e.title}</h3><p>${e.text}</p><a class="btn primary" href="#gallery">${e.btn}</a></div><details><summary>The snippet</summary><pre><code></code></pre></details>`;
   el.querySelector("code").textContent = snippet;
   const f = el.querySelector("iframe"); f.dataset.file = `hairline-${e.name}.html`; watch(f);
   exBox.append(el);
