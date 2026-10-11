@@ -1,0 +1,169 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #fff; }
+  body { font-family: Inter, system-ui, sans-serif; color: #1d1d1f; -webkit-font-smoothing: antialiased; }
+  .l { position: absolute; will-change: transform, opacity; }
+  h1, h2, p, pre, #dip { pointer-events: none; }
+  iframe { border: 0; display: block; background: transparent; }
+  .fig { position: absolute; overflow: hidden; }
+  h1, h2, p { margin: 0; font-weight: 600; }
+  .head { font-size: 76px; letter-spacing: -0.04em; line-height: 1.04; }
+  .mark { font-size: 132px; letter-spacing: -0.05em; line-height: 1; }
+  .sub { font-size: 40px; letter-spacing: -0.025em; color: #6e6e73; font-weight: 500; }
+  .cell { position: absolute; border: 1.5px solid rgba(0,0,0,.08); border-radius: 28px; overflow: hidden; background: #fff; }
+  .cell span { position: absolute; left: 22px; bottom: 16px; font-size: 22px; font-weight: 500; color: #6e6e73; letter-spacing: -0.01em; }
+  pre { margin: 0; font: 500 24px/1.6 "Ubuntu Mono", ui-monospace, monospace; color: #1d1d1f; white-space: pre; }
+  pre b { color: #0071e3; font-weight: 500; }
+  .caret { display: inline-block; width: 12px; height: 30px; background: #0071e3; vertical-align: -6px; margin-left: 2px; }
+  #cursor { position: absolute; left: 0; top: 0; width: 36px; height: 36px; z-index: 50; pointer-events: none; filter: drop-shadow(0 2px 4px rgba(0,0,0,.25)); }
+</style>
+</head>
+<body>
+
+<!-- scene 1–2, 5: the cat -->
+<div class="fig l" id="catBox" style="width:820px;height:656px"><iframe id="cat" src="/hairline-cat.html?theme=light" style="width:820px;height:656px"></iframe></div>
+<h1 class="head l" id="s1t" style="width:1920px;text-align:center;top:92px">Line art that moves when you do.</h1>
+
+<div class="l" id="s2" style="left:1010px;top:470px">
+  <h1 class="mark">animatedSVG</h1>
+  <p class="sub" id="s2sub" style="margin-top:26px">160 figures. Zero dependencies.</p>
+</div>
+
+<!-- scene 3: the grid -->
+<h2 class="head l" id="s3t" style="width:1920px;text-align:center;top:70px;font-size:64px">Every one answers the pointer.</h2>
+<div class="l" id="grid" style="left:0;top:0;width:1920px;height:1080px"></div>
+
+<!-- scene 4: one file / dark -->
+<div class="l" id="s4" style="left:0;top:0;width:1920px;height:1080px">
+  <div style="position:absolute;left:0;top:0;width:960px;height:1080px;background:#fff;overflow:hidden">
+    <h2 class="head" id="s4t" style="position:absolute;left:90px;top:300px">One HTML file.</h2>
+    <pre id="code" style="position:absolute;left:90px;top:450px"></pre>
+  </div>
+  <div style="position:absolute;left:960px;top:0;width:960px;height:1080px;background:#08090a">
+    <div class="fig" style="left:80px;top:250px;width:800px;height:640px"><iframe id="catD" src="/hairline-cat.html?theme=dark" style="color-scheme:dark;width:800px;height:640px"></iframe></div>
+    <h2 class="head" id="s4d" style="position:absolute;width:960px;text-align:center;top:120px;color:#f5f5f7">Light or dark.</h2>
+  </div>
+</div>
+
+<!-- scene 5: outro -->
+<div class="l" id="s5" style="left:0;top:560px;width:1920px;text-align:center">
+  <h1 class="mark">animatedSVG</h1>
+  <p class="sub" style="margin-top:28px">Free. MIT. Copy it, embed it.</p>
+  <p class="sub" style="margin-top:14px;color:#0071e3">animatedsvg.vercel.app</p>
+</div>
+
+<div id="dip" class="l" style="left:0;top:0;width:1920px;height:1080px;background:#fff;opacity:0;z-index:40"></div>
+
+<svg id="cursor" viewBox="0 0 24 24"><path d="M5 3 L5 19 L9.2 15.2 L12 21.2 L14.6 20 L11.9 14.2 L17.6 14.2 Z" fill="#1d1d1f" stroke="#fff" stroke-width="1.5" stroke-linejoin="round"/></svg>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const FIGS = [["arch", "Arch Linux"], ["heap", "min-heap"], ["google", "Google"], ["rocket", "rocket"], ["spark", "Claude"], ["turntable", "turntable"]];
+const CW = 480, CH = 384, GAP = 40, GX = (1920 - 3 * CW - 2 * GAP) / 2, GY = 190;
+const cells = FIGS.map(([n, label], i) => {
+  const d = document.createElement("div");
+  d.className = "cell";
+  const x = GX + (i % 3) * (CW + GAP), y = GY + Math.floor(i / 3) * (CH + GAP);
+  Object.assign(d.style, { left: x + "px", top: y + "px", width: CW + "px", height: CH + "px" });
+  d.innerHTML = `<iframe src="/hairline-${n}.html?theme=light" style="width:${CW}px;height:${CH}px"></iframe><span>${label}</span>`;
+  $("grid").appendChild(d);
+  return { x, y, cx: x + CW / 2, cy: y + CH / 2 - 10 };
+});
+
+/* hide the figure page's own chrome: tags, sliders, notes, plate border */
+const CHROME = `.tag,.controls,#means,#rules,#error{display:none!important}.plate{border:0!important;border-radius:0!important}body{padding:0!important;min-height:0!important;height:100vh;background:transparent!important}main{max-width:none!important}:root{--hairline-stroke:1.6}`;
+window.ready = () => Promise.all([...document.querySelectorAll("iframe")].map((f) => new Promise((res) => {
+  const go = () => { const s = f.contentDocument.createElement("style"); s.textContent = CHROME; f.contentDocument.head.appendChild(s); res(); };
+  f.contentDocument && f.contentDocument.readyState === "complete" && f.contentDocument.querySelector("#stage") ? go() : f.addEventListener("load", go, { once: true });
+}))).then(() => document.fonts.ready);
+
+const clamp = (v) => Math.max(0, Math.min(1, v));
+const ease = (p) => 1 - Math.pow(1 - clamp(p), 3);
+const inout = (p) => { p = clamp(p); return p < .5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2; };
+const ramp = (t, a, b) => ease((t - a) / (b - a));
+const lerp = (a, b, p) => a + (b - a) * p;
+/* in at a..a+0.4 rising 24px, out at b..b+0.3 */
+function show(el, t, a, b, rise = 24) {
+  const i = ramp(t, a, a + 0.45), o = b == null ? 0 : clamp((t - b) / 0.3);
+  el.style.opacity = i * (1 - o);
+  el.style.transform = `translateY(${(1 - i) * rise - o * 12}px)`;
+}
+/* cursor path: keyframes [t, x, y], smoothed */
+const PATH = [
+  [0, 2000, 1150], [0.4, 1560, 980], [1.3, 1040, 560], [2.0, 860, 520], [2.7, 1100, 470], [3.4, 980, 640],
+  [4.2, 700, 520], [5.0, 420, 600], [5.8, 620, 460], [6.6, 520, 640], [7.2, 560, 700],
+  [7.7, cells[0].cx - 60, cells[0].cy], [8.3, cells[0].cx + 80, cells[0].cy - 40],
+  [8.7, cells[1].cx - 40, cells[1].cy + 20], [9.3, cells[1].cx + 60, cells[1].cy - 30],
+  [9.7, cells[2].cx - 30, cells[2].cy], [10.2, cells[2].cx + 70, cells[2].cy + 30],
+  [10.6, cells[5].cx + 40, cells[5].cy - 20], [11.1, cells[5].cx - 60, cells[5].cy + 20],
+  [11.5, cells[4].cx + 30, cells[4].cy - 30], [11.9, cells[4].cx - 40, cells[4].cy + 10],
+  [12.3, cells[3].cx + 20, cells[3].cy], [12.6, 1400, 640], [13.4, 1500, 520], [14.2, 1280, 600], [15.0, 1560, 700], [15.8, 1400, 480], [16.4, 1700, 1200], [20, 1700, 1200],
+];
+function cursorAt(t) {
+  let i = 0; while (i < PATH.length - 2 && PATH[i + 1][0] <= t) i++;
+  const [t0, x0, y0] = PATH[i], [t1, x1, y1] = PATH[i + 1];
+  const p = inout((t - t0) / (t1 - t0));
+  return [lerp(x0, x1, p), lerp(y0, y1, p)];
+}
+window.cursorAt = cursorAt;
+
+const CODE_TXT = `<iframe\n  src="https://animatedsvg.vercel.app/hairline-cat.html">\n</iframe>`;
+function typed(n) {
+  /* first n chars of the plain text, re-highlighted */
+  const s = CODE_TXT.slice(0, n).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return s.replace(/(https:[^"]*)/, "<b>$1</b>");
+}
+
+window.seek = (t) => {
+  /* scene 1–2: cat centre, then slides left */
+  const slide = inout((t - 3.6) / 0.9);
+  const catX = lerp(550, 150, slide), catY = lerp(330, 240, slide), catS = 1;
+  const catOut = clamp((t - 6.75) / 0.3);
+  const catIn5 = ramp(t, 16.6, 17.1);
+  const cb = $("catBox");
+  if (t < 16.4) {
+    cb.style.opacity = (t < 0.0 ? 0 : 1) * (1 - catOut);
+    cb.style.transform = `translate(${catX}px, ${catY}px) scale(${catS})`;
+  } else {
+    cb.style.opacity = catIn5;
+    cb.style.transform = `translate(${960 - 410 * 0.62}px, ${110 + (1 - catIn5) * 20}px) scale(.62)`;
+    cb.style.transformOrigin = "0 0";
+  }
+  if (t < 16.4) cb.style.transformOrigin = "0 0";
+  show($("s1t"), t, 0.9, 3.5);
+  show($("s2"), t, 4.0, 6.75, 0);
+  $("s2").style.transform += ` translateX(${(1 - ramp(t, 4.0, 4.5)) * 40}px)`;
+  $("s2sub").style.opacity = ramp(t, 4.35, 4.8);
+  /* scene 3 */
+  show($("s3t"), t, 7.25, 12.1);
+  const g = $("grid");
+  g.style.opacity = ramp(t, 7.05, 7.5) * (1 - clamp((t - 12.15) / 0.3));
+  [...g.children].forEach((c, i) => {
+    const p = ramp(t, 7.05 + i * 0.06, 7.55 + i * 0.06);
+    c.style.opacity = p; c.style.transform = `translateY(${(1 - p) * 30}px)`;
+  });
+  /* scene 4 */
+  const s4 = $("s4");
+  s4.style.opacity = ramp(t, 12.4, 12.7) * (1 - clamp((t - 16.2) / 0.3));
+  show($("s4t"), t, 12.6, null);
+  show($("s4d"), t, 13.0, null);
+  const n = Math.round(clamp((t - 13.0) / 1.8) * CODE_TXT.length);
+  $("code").innerHTML = typed(n) + (t < 16.4 && (n < CODE_TXT.length || Math.floor(t * 2) % 2 === 0) ? '<span class="caret"></span>' : "");
+  /* scene 5 */
+  show($("s5"), t, 16.75, null, 20);
+  /* cursor */
+  const [x, y] = cursorAt(t);
+  const cur = $("cursor");
+  cur.style.transform = `translate(${x - 8}px, ${y - 4}px)`;
+  cur.style.opacity = t > 16.0 ? 0 : 1;
+  for (const el of document.querySelectorAll(".l, .cell")) el.style.visibility = parseFloat(getComputedStyle(el).opacity) < 0.01 ? "hidden" : "visible";
+  cur.querySelector("path").setAttribute("fill", x > 960 && t > 12.4 && t < 16.4 ? "#f5f5f7" : "#1d1d1f");
+  cur.querySelector("path").setAttribute("stroke", x > 960 && t > 12.4 && t < 16.4 ? "#08090a" : "#fff");
+};
+</script>
+</body>
+</html>

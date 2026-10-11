@@ -15,6 +15,10 @@ Free, hand-built 3D line figures that react to the pointer. Each one is a single
 
 <a href="https://animatedsvg.vercel.app"><img src="og.png" alt="animatedSVG: a line-drawn cat that wakes and watches the pointer" width="720"></a>
 
+<a href="launch.mp4"><img src="launch.jpg" alt="Watch the 20-second launch video: the cat wakes, six figures answer the pointer, one HTML file in light or dark" width="720"></a>
+
+[**▶ Watch the launch video**](launch.mp4) · 20s
+
 </div>
 
 ---

@@ -1,0 +1,1 @@
+Line art that moves when you do. 160 free SVG figures that wake up, build themselves and follow your pointer: a cat that watches you, an Arch logo that stacks itself, a heap that sifts up. One HTML file each, zero dependencies, MIT. animatedsvg.vercel.app
