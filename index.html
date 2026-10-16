@@ -269,6 +269,16 @@
     nav, .bar { background: var(--ground); }
     #toast { background: var(--ink); }
   }
+  /* anatomy: one live stage, a tab per machine */
+  .anat-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; width: fit-content; max-width: 100%; margin: 44px auto 0; padding: 4px; border-radius: 999px; background: var(--raise); }
+  .anat-tabs button { height: 34px; padding: 0 15px; font-size: 14px; background: transparent; }
+  .anat-tabs button[aria-selected="true"] { background: var(--ink); color: var(--ground); }
+  .anat-stage { margin-top: 28px; }
+  .anat-stage iframe { height: 760px; transition: height .3s ease; }
+  .anat-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-top: 22px; }
+  .anat-foot p { margin: 0; color: var(--muted); max-width: 62ch; font-size: 15px; }
+  .anat-foot .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  @media (max-width: 640px) { .anat-stage iframe { height: 620px; } .anat-tabs { border-radius: 20px; } }
   @media (prefers-contrast: more) {
     :root { --line: rgba(0, 0, 0, .4); --muted: #4a4a4f; }
     :root[data-theme="dark"] { --line: rgba(255, 255, 255, .45); --muted: #c7c7cc; }
@@ -287,6 +297,7 @@
     </a>
     <div class="links">
       <a href="#gallery">Gallery</a>
+      <a href="#anatomy">Anatomy</a>
       <a href="#use">Use it</a>
       <a href="#suggest">Suggest</a>
       <a href="#about">About</a>
@@ -359,7 +370,27 @@
     </div>
   </section>
 
-  <section id="how">
+  <section id="anatomy">
+    <div class="wrap">
+      <div class="center">
+        <span class="eyebrow">Anatomy</span>
+        <h2>Machines you can take apart.</h2>
+        <p class="lede">Five interactive isometric figures, each a real machine drawn part by part: screws, seams, springs and cables. Every number they show comes from a small model of the real thing, like gear ratios, f-stops and a fan curve.</p>
+      </div>
+      <div class="anat-tabs" id="anat-tabs" role="tablist" aria-label="Choose a machine"></div>
+      <div class="stage anat-stage"><iframe id="anat-frame" title="Anatomy figure" loading="lazy"></iframe></div>
+      <div class="anat-foot">
+        <p id="anat-note"></p>
+        <div class="actions">
+          <button class="primary" type="button" id="anat-embed">Copy embed</button>
+          <a class="btn" id="anat-open" target="_blank" rel="noopener">Open full page</a>
+          <a class="btn" id="anat-download" download>Download</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="alt">
     <div class="wrap split">
       <div>
         <span class="eyebrow">How it works</span>
@@ -378,7 +409,7 @@
     </div>
   </section>
 
-  <section id="use" class="alt">
+  <section id="use">
     <div class="wrap center">
       <span class="eyebrow">Use it</span>
       <h2>Paste one line. It works anywhere.</h2>
@@ -405,7 +436,7 @@
     </div>
   </section>
 
-  <section id="suggest">
+  <section id="suggest" class="alt">
     <div class="wrap suggest">
       <div>
         <span class="eyebrow">Suggest a figure</span>
@@ -439,7 +470,7 @@
     </div>
   </section>
 
-  <section id="stack" class="alt">
+  <section id="stack">
     <div class="wrap center">
       <span class="eyebrow">Tech stack</span>
       <h2>Built on the web platform.</h2>
@@ -453,7 +484,7 @@
     </div>
   </section>
 
-  <section id="about">
+  <section id="about" class="alt">
     <div class="wrap about">
       <div>
         <span class="eyebrow">About</span>
@@ -461,6 +492,7 @@
         <p class="lede">animatedSVG is built by Sanketh, a final-year BCA student and developer. The goal is simple: give every website a bit of life without making it heavier or harder to maintain.</p>
         <ul class="role">
           <li><strong>Built by Sanketh:</strong> every figure (its shapes, motion and pointer behaviour), the gallery, the copy, embed and download tooling, and this site.</li>
+          <li><strong>Anatomy figures:</strong> the five machines in the Anatomy section were made with <a href="https://github.com/wheresryan22/anatomy" target="_blank" rel="noopener">Anatomy</a>, an open-source drawing kit and Claude Code skill by Ryan, used under the MIT license.</li>
           <li><strong>Built on Hairline:</strong> the 3D-to-line engine that projects the shapes and draws them as SVG is <a href="https://github.com/lucasmarkes/hairline" target="_blank" rel="noopener">Hairline</a> by Lucas Marques, used under the MIT license.</li>
         </ul>
         <div class="cta" style="margin-top:28px">
@@ -481,7 +513,7 @@
 <footer>
   <div class="wrap">
     <span>© 2026 animatedSVG · Sanketh</span>
-    <span>Figures built on <a href="https://github.com/lucasmarkes/hairline" target="_blank" rel="noopener">Hairline</a> by Lucas Marques (MIT) · <a href="THIRD_PARTY_NOTICES.txt">Licenses</a></span>
+    <span>Figures built on <a href="https://github.com/lucasmarkes/hairline" target="_blank" rel="noopener">Hairline</a> by Lucas Marques (MIT) and <a href="https://github.com/wheresryan22/anatomy" target="_blank" rel="noopener">Anatomy</a> by Ryan (MIT) · <a href="THIRD_PARTY_NOTICES.txt">Licenses</a></span>
   </div>
 </footer>
 
@@ -792,6 +824,46 @@ for (const e of EXAMPLES) {
   const f = el.querySelector("iframe"); f.dataset.file = `hairline-${e.name}.html`; watch(f);
   exBox.append(el);
 }
+
+// anatomy: one stage, swapped per machine and per theme
+const ANATOMY = [
+  { id: "car", name: "Car", title: "Rolling chassis", note: "Hover for throttle, 1–6 for the gear, arrow keys to steer. Road speed comes from the gear ratios and the tyre size; the front wheels steer at Ackermann angles." },
+  { id: "pc", name: "PC", title: "Desktop PC", note: "Hover to set the load. Power draw, CPU temperature and fan speed follow a simple thermal model and a real fan curve." },
+  { id: "camera", name: "Camera", title: "Camera", note: "Hover to turn the aperture ring and watch the iris close; click to take a picture. The shutter speed follows in aperture priority." },
+  { id: "phone", name: "Phone", title: "Phone", note: "Hover to take it apart into six layers, from the display to the back glass; keys 1–6 pick a layer." },
+  { id: "printer", name: "3D printer", title: "3D printer", note: "Hover to scrub through a vase print. The nozzle traces each lap at a true 45 mm/s while the gantry climbs 0.2 mm a lap." },
+];
+const anatTabs = document.getElementById("anat-tabs"), anatFrame = document.getElementById("anat-frame");
+let anat = ANATOMY[0];
+const anatFile = (a) => `anatomy-${a.id}${root.dataset.theme === "dark" ? "" : "-light"}.html`;
+function anatShow(a) {
+  anat = a;
+  for (const b of anatTabs.children) b.setAttribute("aria-selected", String(b.dataset.id === a.id));
+  anatFrame.title = `${a.title}: interactive anatomy figure`;
+  anatFrame.src = anatFile(a);
+  document.getElementById("anat-note").textContent = a.note;
+  document.getElementById("anat-open").href = anatFile(a);
+  const dl = document.getElementById("anat-download"); dl.href = anatFile(a); dl.setAttribute("download", anatFile(a));
+}
+for (const a of ANATOMY) {
+  const b = document.createElement("button");
+  b.type = "button"; b.role = "tab"; b.dataset.id = a.id; b.textContent = a.name;
+  b.onclick = () => anatShow(a);
+  anatTabs.append(b);
+}
+// fit the frame to the figure, and drop the page's own outer margin inside it
+anatFrame.addEventListener("load", () => {
+  try {
+    const d = anatFrame.contentDocument;
+    const st = d.createElement("style");
+    st.textContent = `html{color-scheme:${root.dataset.theme === "dark" ? "dark" : "light"}}body{background:transparent!important}.iso-page{margin:20px auto 24px!important}`;
+    d.head.append(st);
+    anatFrame.style.height = d.documentElement.scrollHeight + "px";
+  } catch (e) {}
+});
+new MutationObserver(() => { if (anatFrame.src) anatShow(anat); }).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+document.getElementById("anat-embed").onclick = () => copy(`<iframe src="${BASE}/${anatFile(anat)}" title="${anat.title}"\n  width="100%" height="820" style="border:0" loading="lazy"></iframe>`, "Embed copied");
+anatShow(ANATOMY[0]);
 
 // suggest: the sections to choose from, and a thank-you once the form comes back
 const sel = document.getElementById("section");
