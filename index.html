@@ -375,7 +375,7 @@
       <div class="center">
         <span class="eyebrow">Anatomy</span>
         <h2>Machines you can take apart.</h2>
-        <p class="lede">Five interactive isometric figures, each a real machine drawn part by part: screws, seams, springs and cables. Every number they show comes from a small model of the real thing, like gear ratios, f-stops and a fan curve.</p>
+        <p class="lede">Six interactive isometric figures, each a real object drawn part by part: screws, seams, springs and cables. Hover over one and it comes apart. Every number they show comes from a small model of the real thing, like gear ratios, f-stops and a fan curve.</p>
       </div>
       <div class="anat-tabs" id="anat-tabs" role="tablist" aria-label="Choose a machine"></div>
       <div class="stage anat-stage"><iframe id="anat-frame" title="Anatomy figure" loading="lazy"></iframe></div>
@@ -492,7 +492,7 @@
         <p class="lede">animatedSVG is built by Sanketh, a final-year BCA student and developer. The goal is simple: give every website a bit of life without making it heavier or harder to maintain.</p>
         <ul class="role">
           <li><strong>Built by Sanketh:</strong> every figure (its shapes, motion and pointer behaviour), the gallery, the copy, embed and download tooling, and this site.</li>
-          <li><strong>Anatomy figures:</strong> the five machines in the Anatomy section were made with <a href="https://github.com/wheresryan22/anatomy" target="_blank" rel="noopener">Anatomy</a>, an open-source drawing kit and Claude Code skill by Ryan, used under the MIT license.</li>
+          <li><strong>Anatomy figures:</strong> the six figures in the Anatomy section were made with <a href="https://github.com/wheresryan22/anatomy" target="_blank" rel="noopener">Anatomy</a>, an open-source drawing kit and Claude Code skill by Ryan, used under the MIT license.</li>
           <li><strong>Built on Hairline:</strong> the 3D-to-line engine that projects the shapes and draws them as SVG is <a href="https://github.com/lucasmarkes/hairline" target="_blank" rel="noopener">Hairline</a> by Lucas Marques, used under the MIT license.</li>
         </ul>
         <div class="cta" style="margin-top:28px">
@@ -827,11 +827,12 @@ for (const e of EXAMPLES) {
 
 // anatomy: one stage, swapped per machine and per theme
 const ANATOMY = [
-  { id: "car", name: "Car", title: "Rolling chassis", note: "Hover for throttle, 1–6 for the gear, arrow keys to steer. Road speed comes from the gear ratios and the tyre size; the front wheels steer at Ackermann angles." },
-  { id: "pc", name: "PC", title: "Desktop PC", note: "Hover to set the load. Power draw, CPU temperature and fan speed follow a simple thermal model and a real fan curve." },
-  { id: "camera", name: "Camera", title: "Camera", note: "Hover to turn the aperture ring and watch the iris close; click to take a picture. The shutter speed follows in aperture priority." },
+  { id: "car", name: "Car", title: "Rolling chassis", note: "Hover to lift out the engine, seats, radiator and wheels; move across for throttle, 1–6 for the gear, arrow keys to steer. Road speed comes from the gear ratios and the tyre size; the front wheels steer at Ackermann angles." },
+  { id: "pc", name: "PC", title: "Desktop PC", note: "Hover to pull off the front panel and slide out the graphics card and cooler; move across to set the load. Power draw, CPU temperature and fan speed follow a simple thermal model and a real fan curve." },
+  { id: "camera", name: "Camera", title: "Camera", note: "Hover to take off the lens and see the sensor, and to turn the aperture ring; click to take a picture. The shutter speed follows in aperture priority." },
   { id: "phone", name: "Phone", title: "Phone", note: "Hover to take it apart into six layers, from the display to the back glass; keys 1–6 pick a layer." },
-  { id: "printer", name: "3D printer", title: "3D printer", note: "Hover to scrub through a vase print. The nozzle traces each lap at a true 45 mm/s while the gantry climbs 0.2 mm a lap." },
+  { id: "printer", name: "3D printer", title: "3D printer", note: "Hover to lift the frame and gantry apart; move across to scrub through a vase print. The nozzle traces each lap at a true 45 mm/s while the gantry climbs 0.2 mm a lap." },
+  { id: "cube", name: "Puzzle cube", title: "Puzzle cube", note: "Hover to take a 3×3 cube apart into its 26 pieces and the core, with the screws and springs that hold the centres; keys 1–4 pick a kind of piece." },
 ];
 const anatTabs = document.getElementById("anat-tabs"), anatFrame = document.getElementById("anat-frame");
 let anat = ANATOMY[0];
